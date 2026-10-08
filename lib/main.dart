@@ -16,7 +16,7 @@ void main() async {
 
   // Initialize Better Auth service & restore saved token
   final authService = AuthService(
-    defaultBaseUrl: 'https://new-chat-ms8iyb8qq-redaniums-projects.vercel.app',
+    defaultBaseUrl: 'https://crmium.vercel.app',
   );
   await authService.initialize();
 

@@ -8,7 +8,7 @@ class ApiService {
   // Configured default URL pointing to your deployed Next.js backend
   // For local Android emulator, use: http://10.0.2.2:3000
   // For physical devices, use your deployment domain: https://your-crm.app
-  String baseUrl = 'https://crmium-1y8xx5jcz-redaniums-projects.vercel.app';
+  String baseUrl = 'https://crmium.vercel.app';
   final AuthService? authService;
 
   late final Dio _dio;

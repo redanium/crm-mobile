@@ -8,7 +8,7 @@ class ApiService {
   // Configured default URL pointing to your deployed Next.js backend
   // For local Android emulator, use: http://10.0.2.2:3000
   // For physical devices, use your deployment domain: https://your-crm.app
-  String baseUrl = 'https://crmium-18kx3b8d2-redaniums-projects.vercel.app';
+  String baseUrl = 'https://crmium-1y8xx5jcz-redaniums-projects.vercel.app';
   final AuthService? authService;
 
   late final Dio _dio;
@@ -118,6 +118,26 @@ class ApiService {
     final response = await _dio.get('/api/mobile/products');
     final data = response.data['products'] as List<dynamic>;
     return data.map((json) => Product.fromJson(json)).toList();
+  }
+
+  /// Fetch full catalog bundle: products, samples batches, and gifts
+  Future<Map<String, dynamic>> getCatalogBundle() async {
+    final response = await _dio.get('/api/mobile/products');
+    final productsData = (response.data['products'] as List<dynamic>? ?? [])
+        .map((json) => Product.fromJson(json))
+        .toList();
+    final samplesData = (response.data['samples'] as List<dynamic>? ?? [])
+        .map((json) => SampleBatch.fromJson(json))
+        .toList();
+    final giftsData = (response.data['gifts'] as List<dynamic>? ?? [])
+        .map((json) => PromotionalGift.fromJson(json))
+        .toList();
+
+    return {
+      'products': productsData,
+      'samples': samplesData,
+      'gifts': giftsData,
+    };
   }
 
   /// Fetch rep territory quotas & assigned wilayas

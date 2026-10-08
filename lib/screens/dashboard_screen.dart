@@ -18,6 +18,11 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _pendingSyncCount = 0;
   bool _isLoading = true;
+  int _todayVisitsCount = 0;
+  int _targetVisitsCount = 10;
+  int _samplesCount = 0;
+  int _coveredWilayasCount = 0;
+  String _wilayasSummaryText = 'Territoire assigné';
 
   @override
   void initState() {
@@ -32,10 +37,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final pending = await dbHelper.getPendingVisits();
     try {
-      await apiService.getTerritorySummary();
+      final summaryRes = await apiService.getTerritorySummary();
+      final territories = summaryRes['territories'] as List<dynamic>? ?? [];
+      final summary = summaryRes['summary'] as Map<String, dynamic>?;
+
+      final totalCompleted = summary?['totalCompleted'] is int
+          ? summary!['totalCompleted'] as int
+          : int.tryParse(summary?['totalCompleted']?.toString() ?? '0') ?? 0;
+      final totalTarget = summary?['totalTarget'] is int
+          ? summary!['totalTarget'] as int
+          : int.tryParse(summary?['totalTarget']?.toString() ?? '10') ?? 10;
+
+      final wilayaNames = territories
+          .map((t) => t['wilayaName']?.toString())
+          .where((w) => w != null && w.isNotEmpty)
+          .take(3)
+          .join(', ');
+
+      // Also compute samples count from local cache
+      final samplesList = await dbHelper.getCachedSamples();
+      final totalSamplesInStock = samplesList.fold<int>(0, (sum, s) => sum + s.quantity);
+
       if (mounted) {
         setState(() {
           _pendingSyncCount = pending.length;
+          _todayVisitsCount = totalCompleted + pending.length;
+          _targetVisitsCount = totalTarget > 0 ? totalTarget : 10;
+          _samplesCount = totalSamplesInStock;
+          _coveredWilayasCount = territories.length;
+          if (wilayaNames.isNotEmpty) {
+            _wilayasSummaryText = wilayaNames;
+          }
           _isLoading = false;
         });
       }
@@ -44,6 +76,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) {
         setState(() {
           _pendingSyncCount = pending.length;
+          _todayVisitsCount = pending.length;
           _isLoading = false;
         });
       }
@@ -81,7 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     currentUser?.email.isNotEmpty == true
                         ? currentUser!.email
-                        : 'Délégué Médical • Zone Ouest (31/16/27)',
+                        : (currentUser?.role != null ? '${currentUser!.role!.toUpperCase()} • CRM Mobile' : 'Délégué Médical • Noura Pharma'),
                     style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -214,9 +247,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Expanded(
                         child: _buildKpiCard(
-                          title: 'Visites Aujourd’hui',
-                          value: '6 / 8',
-                          subtitle: '75% quota journalier',
+                          title: 'Visites Validées',
+                          value: '$_todayVisitsCount / $_targetVisitsCount',
+                          subtitle: _targetVisitsCount > 0
+                              ? '${((_todayVisitsCount / _targetVisitsCount) * 100).round()}% objectif'
+                              : 'Quota terrain',
                           icon: LucideIcons.checkCircle2,
                           color: const Color(0xFF0F766E),
                         ),
@@ -224,9 +259,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildKpiCard(
-                          title: 'Échantillons Distr.',
-                          value: '18 boîtes',
-                          subtitle: 'Cetamol & Cardiozen',
+                          title: 'Stock Échantillons',
+                          value: '$_samplesCount boîtes',
+                          subtitle: 'Disponible inventaire',
                           icon: LucideIcons.package,
                           color: const Color(0xFF0284C7),
                         ),
@@ -238,9 +273,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Expanded(
                         child: _buildKpiCard(
-                          title: 'Couverture Wilaya',
-                          value: '84%',
-                          subtitle: 'Oran, Alger, Sétif',
+                          title: 'Couverture Territoire',
+                          value: '$_coveredWilayasCount Wilayas',
+                          subtitle: _wilayasSummaryText,
                           icon: LucideIcons.mapPin,
                           color: const Color(0xFF8B5CF6),
                         ),

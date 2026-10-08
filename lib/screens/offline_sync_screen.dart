@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../services/database_helper.dart';
 
 class OfflineSyncScreen extends StatefulWidget {
@@ -37,11 +38,16 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
     setState(() => _isSyncing = true);
 
     final apiService = Provider.of<ApiService>(context, listen: false);
+    final authService = Provider.of<AuthService>(context, listen: false);
     final dbHelper = Provider.of<DatabaseHelper>(context, listen: false);
+
+    final currentUserId = authService.currentUser?.id.isNotEmpty == true
+        ? authService.currentUser!.id
+        : 'REP_MOBILE';
 
     try {
       final res = await apiService.syncOfflineQueue(
-        repId: 'REP_001',
+        repId: currentUserId,
         queuedVisits: _pendingVisits,
       );
 

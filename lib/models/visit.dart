@@ -13,6 +13,8 @@ class Visit {
   final String? nextFollowupDate;
   final double? latitude;
   final double? longitude;
+  final String? wilaya;
+  final String? facilityName;
   final String status;
   final DateTime scheduledAt;
 
@@ -31,6 +33,8 @@ class Visit {
     this.nextFollowupDate,
     this.latitude,
     this.longitude,
+    this.wilaya,
+    this.facilityName,
     this.status = 'Confirmed',
     DateTime? scheduledAt,
   }) : scheduledAt = scheduledAt ?? DateTime.now();
@@ -38,23 +42,25 @@ class Visit {
   factory Visit.fromJson(Map<String, dynamic> json) {
     return Visit(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? ''),
-      clientUuid: json['clientUuid'],
-      accountName: json['accountName'] ?? '',
-      activityType: json['activityType'] ?? 'Visite Médicale',
-      repName: json['repName'] ?? 'Délégué Médical',
-      repId: json['repId'] ?? 'REP_001',
+      clientUuid: json['clientUuid'] ?? json['client_uuid'],
+      accountName: json['accountName'] ?? json['account_name'] ?? '',
+      activityType: json['activityType'] ?? json['activity_type'] ?? 'Visite Médicale',
+      repName: json['repName'] ?? json['rep_name'] ?? 'Délégué Médical',
+      repId: json['repId'] ?? json['rep_id'] ?? 'REP_001',
       purpose: json['purpose'],
-      productsDiscussed: json['productsDiscussed'],
-      samplesDistributed: json['samplesDistributed'],
-      giftsDistributed: json['giftsDistributed'],
-      feedbackNotes: json['feedbackNotes'] ?? json['notes'],
-      nextFollowupDate: json['nextFollowupDate'],
+      productsDiscussed: json['productsDiscussed'] ?? json['products_discussed'],
+      samplesDistributed: json['samplesDistributed'] ?? json['samples_distributed'],
+      giftsDistributed: json['giftsDistributed'] ?? json['gifts_distributed'],
+      feedbackNotes: json['feedbackNotes'] ?? json['feedback_notes'] ?? json['notes'],
+      nextFollowupDate: json['nextFollowupDate'] ?? json['next_followup_date'],
       latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
       longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
-      status: json['status'] ?? 'Confirmed',
+      wilaya: json['wilaya'],
+      facilityName: json['facilityName'] ?? json['facility_name'] ?? json['organization'],
+      status: json['status'] ?? json['sync_status'] ?? 'Confirmed',
       scheduledAt: json['scheduledAt'] != null
           ? DateTime.tryParse(json['scheduledAt'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+          : (json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now() : DateTime.now()),
     );
   }
 
@@ -74,8 +80,33 @@ class Visit {
       'nextFollowupDate': nextFollowupDate,
       'latitude': latitude,
       'longitude': longitude,
+      'wilaya': wilaya,
+      'facilityName': facilityName,
       'status': status,
       'scheduledAt': scheduledAt.toIso8601String(),
+    };
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      if (id != null) 'id': id,
+      'client_uuid': clientUuid,
+      'account_name': accountName,
+      'activity_type': activityType,
+      'rep_name': repName,
+      'rep_id': repId,
+      'purpose': purpose,
+      'products_discussed': productsDiscussed,
+      'samples_distributed': samplesDistributed,
+      'gifts_distributed': giftsDistributed,
+      'feedback_notes': feedbackNotes,
+      'next_followup_date': nextFollowupDate,
+      'latitude': latitude,
+      'longitude': longitude,
+      'wilaya': wilaya,
+      'facility_name': facilityName,
+      'sync_status': status,
+      'created_at': scheduledAt.toIso8601String(),
     };
   }
 }

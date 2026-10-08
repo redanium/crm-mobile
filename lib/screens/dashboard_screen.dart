@@ -7,6 +7,7 @@ import '../services/database_helper.dart';
 import 'doctors_screen.dart';
 import 'visit_logger_screen.dart';
 import 'offline_sync_screen.dart';
+import 'visits_history_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -254,6 +255,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               : 'Quota terrain',
                           icon: LucideIcons.checkCircle2,
                           color: const Color(0xFF0F766E),
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const VisitsHistoryScreen()),
+                            );
+                            _loadDashboardData();
+                          },
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -306,10 +314,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     subtitle: 'Tag GPS automatique, discussion produits & signature',
                     icon: LucideIcons.clipboardSignature,
                     color: const Color(0xFF0F766E),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const VisitLoggerScreen()),
-                    ),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const VisitLoggerScreen()),
+                      );
+                      _loadDashboardData();
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _buildActionCard(
+                    title: 'Historique des Visites & Rapports',
+                    subtitle: 'Filtrer par date, médecin et territoire / wilaya',
+                    icon: LucideIcons.calendarClock,
+                    color: const Color(0xFF0D9488),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const VisitsHistoryScreen()),
+                      );
+                      _loadDashboardData();
+                    },
                   ),
                   const SizedBox(height: 10),
                   _buildActionCard(
@@ -328,10 +353,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     subtitle: "Visualiser les rapports stockés et forcer l'envoi cloud",
                     icon: LucideIcons.cloudUpload,
                     color: const Color(0xFF8B5CF6),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const OfflineSyncScreen()),
-                    ),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const OfflineSyncScreen()),
+                      );
+                      _loadDashboardData();
+                    },
                   ),
                 ],
               ),
@@ -345,8 +373,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String subtitle,
     required IconData icon,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    final content = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -356,7 +385,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 22),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, color: color, size: 22),
+              if (onTap != null)
+                const Icon(LucideIcons.chevronRight, size: 14, color: Color(0xFF94A3B8)),
+            ],
+          ),
           const SizedBox(height: 10),
           Text(
             value,
@@ -369,6 +405,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: content,
+      );
+    }
+    return content;
   }
 
   Widget _buildActionCard({
@@ -393,7 +438,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 24),

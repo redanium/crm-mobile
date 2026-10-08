@@ -102,8 +102,8 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: _pendingVisits.isEmpty
-                              ? const Color(0xFF10B981).withOpacity(0.1)
-                              : const Color(0xFFD97706).withOpacity(0.1),
+                              ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                              : const Color(0xFFD97706).withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(

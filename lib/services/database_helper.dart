@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/doctor.dart';
 import '../models/product.dart';
+import '../models/visit.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -21,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -62,6 +63,8 @@ class DatabaseHelper {
         next_followup_date TEXT,
         latitude REAL,
         longitude REAL,
+        wilaya TEXT,
+        facility_name TEXT,
         created_at TEXT NOT NULL,
         sync_status TEXT DEFAULT 'pending'
       )
@@ -143,6 +146,14 @@ class DatabaseHelper {
         )
       ''');
     }
+    if (oldVersion < 3) {
+      try {
+        await db.execute('ALTER TABLE offline_visits ADD COLUMN wilaya TEXT;');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE offline_visits ADD COLUMN facility_name TEXT;');
+      } catch (_) {}
+    }
   }
 
   // --- Offline Visits Queue Operations ---
@@ -182,6 +193,49 @@ class DatabaseHelper {
       where: 'sync_status = ?',
       whereArgs: ['synced'],
     );
+  }
+
+  /// Get all visits from SQLite (both pending and synced, sorted newest first)
+  Future<List<Visit>> getAllVisits() async {
+    final db = await instance.database;
+    final results = await db.query(
+      'offline_visits',
+      orderBy: 'created_at DESC',
+    );
+    return results.map((row) => Visit.fromJson(row)).toList();
+  }
+
+  /// Cache visits fetched from server into SQLite
+  Future<void> cacheVisits(List<Visit> visits) async {
+    final db = await instance.database;
+    final batch = db.batch();
+    for (var v in visits) {
+      final uuid = v.clientUuid ?? 'srv-${v.id ?? DateTime.now().millisecondsSinceEpoch}';
+      batch.insert(
+        'offline_visits',
+        {
+          'client_uuid': uuid,
+          'account_name': v.accountName,
+          'activity_type': v.activityType,
+          'rep_name': v.repName,
+          'rep_id': v.repId,
+          'purpose': v.purpose,
+          'products_discussed': v.productsDiscussed,
+          'samples_distributed': v.samplesDistributed,
+          'gifts_distributed': v.giftsDistributed,
+          'feedback_notes': v.feedbackNotes,
+          'next_followup_date': v.nextFollowupDate,
+          'latitude': v.latitude,
+          'longitude': v.longitude,
+          'wilaya': v.wilaya,
+          'facility_name': v.facilityName,
+          'created_at': v.scheduledAt.toIso8601String(),
+          'sync_status': v.status.isNotEmpty ? v.status : 'synced',
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    }
+    await batch.commit(noResult: true);
   }
 
   // --- Local Doctors Cache ---

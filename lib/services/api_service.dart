@@ -76,12 +76,22 @@ class ApiService {
     return data.map((json) => Doctor.fromJson(json)).toList();
   }
 
-  /// Fetch visits schedule and past visits
-  Future<List<Visit>> getVisits({String? repId}) async {
+  /// Fetch visits schedule and past visits with optional filters
+  Future<List<Visit>> getVisits({
+    String? repId,
+    String? doctor,
+    String? wilaya,
+    String? date,
+    String? search,
+  }) async {
     final response = await _dio.get(
       '/api/mobile/visits',
       queryParameters: {
         if (repId != null) 'repId': repId,
+        if (doctor != null) 'doctor': doctor,
+        if (wilaya != null) 'wilaya': wilaya,
+        if (date != null) 'date': date,
+        if (search != null) 'search': search,
       },
     );
     final data = response.data['visits'] as List<dynamic>;

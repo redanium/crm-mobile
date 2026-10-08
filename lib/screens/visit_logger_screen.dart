@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/doctor.dart';
 import '../models/product.dart';
+import '../models/visit.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/database_helper.dart';
@@ -42,6 +43,8 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
   List<String> _selectedProducts = [];
   List<String> _selectedSamples = [];
 
+  Doctor? _selectedDoctor;
+
   @override
   void initState() {
     super.initState();
@@ -65,6 +68,14 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
         if (mounted) setState(() => _availableDoctors = onlineDocs);
       }
     } catch (_) {}
+
+    // Match initial doctor if provided
+    if (widget.initialDoctorName != null && widget.initialDoctorName!.isNotEmpty) {
+      final match = _availableDoctors.where((d) => d.name == widget.initialDoctorName).firstOrNull;
+      if (match != null) {
+        _selectedDoctor = match;
+      }
+    }
 
     // 2. Load products, samples, and gifts from cache, then sync live bundle
     try {
@@ -121,8 +132,10 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
     );
 
     if (picked != null) {
+      final matchedDoc = _availableDoctors.where((d) => d.id.toString() == picked.id).firstOrNull;
       setState(() {
         _doctorCtrl.text = picked.title;
+        _selectedDoctor = matchedDoc;
       });
     }
   }
@@ -275,7 +288,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
 
     final visitPayload = {
       'client_uuid': clientUuid,
-      'doctor_id': null,
+      'doctor_id': _selectedDoctor?.id,
       'account_name': _doctorCtrl.text.trim(),
       'activity_type': _activityType,
       'rep_name': repName,
@@ -286,25 +299,26 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       'gifts_distributed': '',
       'feedback_notes': _feedbackCtrl.text.trim(),
       'next_followup_date': '',
-      'latitude': _latitude,
-      'longitude': _longitude,
+      'latitude': _latitude ?? _selectedDoctor?.latitude,
+      'longitude': _longitude ?? _selectedDoctor?.longitude,
+      'wilaya': _selectedDoctor?.wilaya ?? 'Oran · 31',
+      'facility_name': _selectedDoctor?.organization ?? '',
       'created_at': DateTime.now().toIso8601String(),
       'sync_status': 'pending',
     };
 
     bool syncedOnline = false;
     try {
+      // Save locally first
+      await dbHelper.enqueueVisit(visitPayload);
+
       // Attempt immediate sync to Next.js API
-      await apiService.logVisit(
-        // Mapping to model
-        // Will succeed if online
-        // If timeout or no connection, catches below and enqueues to SQLite
-        (await dbHelper.enqueueVisit(visitPayload)) as dynamic,
-      );
+      final visitObj = Visit.fromJson(visitPayload);
+      await apiService.logVisit(visitObj);
+      await dbHelper.markVisitSynced(clientUuid);
       syncedOnline = true;
     } catch (e) {
-      // Offline fallback: save to local SQLite
-      await dbHelper.enqueueVisit(visitPayload);
+      // Offline fallback: already enqueued to local SQLite
       syncedOnline = false;
     }
 
@@ -369,7 +383,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F766E).withOpacity(0.1),
+                      color: const Color(0xFF0F766E).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(LucideIcons.mapPin, color: Color(0xFF0F766E), size: 22),
@@ -428,7 +442,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
             const SizedBox(height: 12),
 
             DropdownButtonFormField<String>(
-              value: _activityType,
+              initialValue: _activityType,
               decoration: InputDecoration(
                 labelText: 'Type d’activité',
                 prefixIcon: const Icon(LucideIcons.activity, size: 18),

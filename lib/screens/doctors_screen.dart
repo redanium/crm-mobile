@@ -5,6 +5,7 @@ import '../models/doctor.dart';
 import '../services/api_service.dart';
 import '../services/database_helper.dart';
 import 'visit_logger_screen.dart';
+import 'visits_history_screen.dart';
 
 class DoctorsScreen extends StatefulWidget {
   const DoctorsScreen({super.key});
@@ -104,7 +105,7 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                                 Row(
                                   children: [
                                     CircleAvatar(
-                                      backgroundColor: const Color(0xFF0F766E).withOpacity(0.1),
+                                      backgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.1),
                                       child: const Icon(LucideIcons.user, color: Color(0xFF0F766E), size: 18),
                                     ),
                                     const SizedBox(width: 12),
@@ -170,6 +171,25 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                                     const SizedBox(width: 4),
                                     Text(doc.wilaya, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                                     const Spacer(),
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFFF1F5F9),
+                                        foregroundColor: const Color(0xFF0F766E),
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      ),
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => VisitsHistoryScreen(initialDoctorFilter: doc.name),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(LucideIcons.calendarClock, size: 14),
+                                      label: const Text('Historique', style: TextStyle(fontSize: 12)),
+                                    ),
+                                    const SizedBox(width: 8),
                                     ElevatedButton.icon(
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFF0F766E),

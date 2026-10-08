@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../services/database_helper.dart';
 import 'doctors_screen.dart';
 import 'visit_logger_screen.dart';
@@ -51,6 +52,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final currentUser = authService.currentUser;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -59,24 +63,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F766E).withOpacity(0.1),
+                color: const Color(0xFF0F766E).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(LucideIcons.stethoscope, color: Color(0xFF0F766E), size: 20),
             ),
             const SizedBox(width: 10),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pharma CRM DZ',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                Text(
-                  'Délégué Médical • Zone Ouest (31/16/27)',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                ),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    currentUser?.name ?? 'Pharma CRM DZ',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    currentUser?.email.isNotEmpty == true
+                        ? currentUser!.email
+                        : 'Délégué Médical • Zone Ouest (31/16/27)',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -86,6 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               IconButton(
                 icon: const Icon(LucideIcons.refreshCw, size: 20),
+                tooltip: 'Synchronisation',
                 onPressed: () async {
                   await Navigator.push(
                     context,
@@ -112,7 +123,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
             ],
           ),
-          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(LucideIcons.logOut, size: 19, color: Color(0xFF64748B)),
+            tooltip: 'Déconnexion',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: const Text('Déconnexion'),
+                  content: const Text('Voulez-vous vraiment vous déconnecter de la session Better Auth ?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Annuler'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        authService.signOut();
+                      },
+                      child: const Text('Se déconnecter'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: _isLoading

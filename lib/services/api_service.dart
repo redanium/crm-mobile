@@ -2,16 +2,18 @@ import 'package:dio/dio.dart';
 import '../models/doctor.dart';
 import '../models/visit.dart';
 import '../models/product.dart';
+import 'auth_service.dart';
 
 class ApiService {
   // Configured default URL pointing to your deployed Next.js backend
   // For local Android emulator, use: http://10.0.2.2:3000
   // For physical devices, use your deployment domain: https://your-crm.app
   String baseUrl = 'https://new-chat-ms8iyb8qq-redaniums-projects.vercel.app';
+  final AuthService? authService;
 
   late final Dio _dio;
 
-  ApiService({String? customBaseUrl}) {
+  ApiService({String? customBaseUrl, this.authService}) {
     if (customBaseUrl != null && customBaseUrl.isNotEmpty) {
       baseUrl = customBaseUrl;
     }
@@ -24,6 +26,26 @@ class ApiService {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'X-Client-Platform': 'Flutter-Mobile',
+        },
+      ),
+    );
+
+    // Better Auth: Inject Bearer token & session cookie
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          final token = authService?.token;
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+            options.headers['Cookie'] = 'better-auth.session_token=$token';
+          }
+          return handler.next(options);
+        },
+        onError: (DioException error, handler) {
+          if (error.response?.statusCode == 401) {
+            authService?.handleSessionExpired();
+          }
+          return handler.next(error);
         },
       ),
     );

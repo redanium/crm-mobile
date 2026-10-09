@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -59,6 +59,7 @@ class DatabaseHelper {
         products_discussed TEXT,
         samples_distributed TEXT,
         gifts_distributed TEXT,
+        inventory_distributions TEXT,
         feedback_notes TEXT,
         next_followup_date TEXT,
         latitude REAL,
@@ -153,6 +154,9 @@ class DatabaseHelper {
       try {
         await db.execute('ALTER TABLE offline_visits ADD COLUMN facility_name TEXT;');
       } catch (_) {}
+    }
+    if (oldVersion < 4) {
+      try { await db.execute('ALTER TABLE offline_visits ADD COLUMN inventory_distributions TEXT;'); } catch (_) {}
     }
   }
 

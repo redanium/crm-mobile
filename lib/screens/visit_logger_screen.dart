@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -24,6 +25,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
   late final TextEditingController _doctorCtrl;
   final _productsCtrl = TextEditingController();
   final _samplesCtrl = TextEditingController();
+  final _giftsCtrl = TextEditingController();
   final _feedbackCtrl = TextEditingController();
   
   String _activityType = 'Product presentation';
@@ -41,7 +43,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
 
   // Selected items lists
   List<String> _selectedProducts = [];
-  List<String> _selectedSamples = [];
+  final Map<String, int> _inventorySelections = {};
 
   Doctor? _selectedDoctor;
 
@@ -93,8 +95,25 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
 
       final bundle = await apiService.getCatalogBundle();
       final liveProducts = bundle['products'] as List<Product>? ?? [];
-      final liveSamples = bundle['samples'] as List<SampleBatch>? ?? [];
-      final liveGifts = bundle['gifts'] as List<PromotionalGift>? ?? [];
+      final pending = await dbHelper.getPendingVisits();
+      final reserved = <String, int>{};
+      for (final visit in pending) {
+        final raw = visit['inventory_distributions'];
+        final lines = raw is String ? (jsonDecode(raw) as List<dynamic>? ?? []) : (raw as List<dynamic>? ?? []);
+        for (final line in lines) {
+          final item = Map<String, dynamic>.from(line as Map);
+          final key = '${item['itemType']}:${item['itemId']}';
+          reserved[key] = (reserved[key] ?? 0) + (int.tryParse(item['quantity'].toString()) ?? 0);
+        }
+      }
+      final liveSamples = (bundle['samples'] as List<SampleBatch>? ?? []).map((sample) => SampleBatch(
+        id: sample.id, prodId: sample.prodId, brandName: sample.brandName, expiry: sample.expiry,
+        quantity: (sample.quantity - (reserved['sample:${sample.id}'] ?? 0)).clamp(0, sample.quantity).toInt(), unit: sample.unit,
+      )).toList();
+      final liveGifts = (bundle['gifts'] as List<PromotionalGift>? ?? []).map((gift) => PromotionalGift(
+        id: gift.id, giftId: gift.giftId, name: gift.name,
+        quantity: (gift.quantity - (reserved['gift:${gift.id}'] ?? 0)).clamp(0, gift.quantity).toInt(), distributed: gift.distributed,
+      )).toList();
 
       if (liveProducts.isNotEmpty || liveSamples.isNotEmpty || liveGifts.isNotEmpty) {
         await dbHelper.cacheCatalog(
@@ -174,41 +193,72 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
   }
 
   Future<void> _pickSamples() async {
-    final sampleItems = _availableSamples.map((s) {
-      return FilterableItem(
-        id: '${s.brandName} (Lot ${s.prodId})',
-        title: '${s.brandName} (Éch. Médical)',
-        subtitle: 'Lot: ${s.prodId} · Exp: ${s.expiry} · Stock: ${s.quantity} ${s.unit}s',
-        badge: 'Échantillon',
-      );
-    }).toList();
-
-    final giftItems = _availableGifts.map((g) {
-      return FilterableItem(
-        id: '${g.name} (${g.giftId})',
-        title: g.name,
-        subtitle: 'Code: ${g.giftId} · En stock: ${g.quantity}',
-        badge: 'Goodie',
-      );
-    }).toList();
-
-    final combinedItems = [...sampleItems, ...giftItems];
-
-    final pickedList = await showMultiFilterableListPicker(
+    final result = await showDialog<Map<String, int>>(
       context: context,
-      title: 'Échantillons & Goodies Remis',
-      items: combinedItems,
-      searchHint: 'Filtrer les lots et objets en stock...',
-      selectedIds: _selectedSamples,
-      allowCustom: true,
+      builder: (context) {
+        final quantities = Map<String, int>.from(_inventorySelections);
+        return StatefulBuilder(builder: (context, refresh) => AlertDialog(
+          title: const Text('Échantillons & Goodies remis'),
+          content: SizedBox(width: 520, child: ListView(shrinkWrap: true, children: [
+            for (final sample in _availableSamples)
+              _inventoryQuantityRow(
+                title: '${sample.brandName} · Lot ${sample.prodId}',
+                subtitle: 'Disponible: ${sample.quantity} ${sample.unit}',
+                max: sample.quantity,
+                quantity: quantities['sample:${sample.id}'] ?? 0,
+                onChanged: (value) => refresh(() => quantities['sample:${sample.id}'] = value),
+              ),
+            for (final gift in _availableGifts)
+              _inventoryQuantityRow(
+                title: gift.name, subtitle: '${gift.giftId} · Disponible: ${gift.quantity}',
+                max: gift.quantity,
+                quantity: quantities['gift:${gift.id}'] ?? 0,
+                onChanged: (value) => refresh(() => quantities['gift:${gift.id}'] = value),
+              ),
+            if (_availableSamples.isEmpty && _availableGifts.isEmpty)
+              const Padding(padding: EdgeInsets.all(16), child: Text('Aucun stock attribué à votre compte.')),
+          ])),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            FilledButton(onPressed: () => Navigator.pop(context, quantities), child: const Text('Enregistrer')),
+          ],
+        ));
+      },
     );
-
-    if (pickedList != null) {
-      setState(() {
-        _selectedSamples = pickedList.map((i) => i.id).toList();
-        _samplesCtrl.text = _selectedSamples.join(', ');
-      });
+    if (result == null) return;
+    final sampleSummary = <String>[];
+    final giftSummary = <String>[];
+    for (final entry in result.entries.where((entry) => entry.value > 0)) {
+      final parts = entry.key.split(':');
+      final isSample = parts.first == 'sample';
+      if (isSample) {
+        final item = _availableSamples.where((value) => value.id.toString() == parts.last).firstOrNull;
+        if (item != null) sampleSummary.add('${item.brandName} × ${entry.value}');
+      } else {
+        final item = _availableGifts.where((value) => value.id.toString() == parts.last).firstOrNull;
+        if (item != null) giftSummary.add('${item.name} × ${entry.value}');
+      }
     }
+    setState(() {
+      _inventorySelections
+        ..clear()
+        ..addAll(result);
+      _samplesCtrl.text = sampleSummary.join(', ');
+      _giftsCtrl.text = giftSummary.join(', ');
+    });
+  }
+
+  Widget _inventoryQuantityRow({required String title, required String subtitle, required int max, required int quantity, required ValueChanged<int> onChanged}) {
+    return ListTile(
+      dense: true, contentPadding: EdgeInsets.zero,
+      title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(onPressed: quantity > 0 ? () => onChanged(quantity - 1) : null, icon: const Icon(Icons.remove_circle_outline)),
+        SizedBox(width: 24, child: Text('$quantity', textAlign: TextAlign.center)),
+        IconButton(onPressed: quantity < max ? () => onChanged(quantity + 1) : null, icon: const Icon(Icons.add_circle_outline)),
+      ]),
+    );
   }
 
   Future<void> _captureGps() async {
@@ -296,7 +346,11 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       'purpose': _purpose,
       'products_discussed': _productsCtrl.text.trim(),
       'samples_distributed': _samplesCtrl.text.trim(),
-      'gifts_distributed': '',
+      'gifts_distributed': _giftsCtrl.text.trim(),
+      'inventory_distributions': jsonEncode(_inventorySelections.entries.where((entry) => entry.value > 0).map((entry) {
+        final parts = entry.key.split(':');
+        return {'itemType': parts.first, 'itemId': int.parse(parts.last), 'quantity': entry.value};
+      }).toList()),
       'feedback_notes': _feedbackCtrl.text.trim(),
       'next_followup_date': '',
       'latitude': _latitude ?? _selectedDoctor?.latitude,
@@ -311,6 +365,16 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
     try {
       // Save locally first
       await dbHelper.enqueueVisit(visitPayload);
+      final reservedSamples = _availableSamples.map((sample) {
+        final used = _inventorySelections['sample:${sample.id}'] ?? 0;
+        return SampleBatch(id: sample.id, prodId: sample.prodId, brandName: sample.brandName, expiry: sample.expiry, quantity: (sample.quantity - used).clamp(0, sample.quantity).toInt(), unit: sample.unit);
+      }).toList();
+      final reservedGifts = _availableGifts.map((gift) {
+        final used = _inventorySelections['gift:${gift.id}'] ?? 0;
+        return PromotionalGift(id: gift.id, giftId: gift.giftId, name: gift.name, quantity: (gift.quantity - used).clamp(0, gift.quantity).toInt(), distributed: gift.distributed);
+      }).toList();
+      setState(() { _availableSamples = reservedSamples; _availableGifts = reservedGifts; });
+      await dbHelper.cacheCatalog(products: _availableProducts, samples: reservedSamples, gifts: reservedGifts);
 
       // Attempt immediate sync to Next.js API
       final visitObj = Visit.fromJson(visitPayload);
@@ -493,6 +557,19 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
                   tooltip: 'Sélectionner lots & goodies',
                 ),
                 helperText: 'Touchez pour sélectionner les lots d’échantillons & cadeaux',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _giftsCtrl,
+              readOnly: true,
+              onTap: _pickSamples,
+              decoration: InputDecoration(
+                labelText: 'Goodies remis',
+                prefixIcon: const Icon(LucideIcons.gift, size: 18),
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

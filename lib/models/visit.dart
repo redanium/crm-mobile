@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Visit {
   final int? id;
   final String? clientUuid;
@@ -9,6 +11,7 @@ class Visit {
   final String? productsDiscussed;
   final String? samplesDistributed;
   final String? giftsDistributed;
+  final List<Map<String, dynamic>> inventoryDistributions;
   final String? feedbackNotes;
   final String? nextFollowupDate;
   final double? latitude;
@@ -29,6 +32,7 @@ class Visit {
     this.productsDiscussed,
     this.samplesDistributed,
     this.giftsDistributed,
+    this.inventoryDistributions = const [],
     this.feedbackNotes,
     this.nextFollowupDate,
     this.latitude,
@@ -40,6 +44,10 @@ class Visit {
   }) : scheduledAt = scheduledAt ?? DateTime.now();
 
   factory Visit.fromJson(Map<String, dynamic> json) {
+    final rawInventory = json['inventoryDistributions'] ?? json['inventory_distributions'];
+    final inventory = rawInventory is String
+        ? (jsonDecode(rawInventory) as List<dynamic>? ?? [])
+        : (rawInventory as List<dynamic>? ?? []);
     return Visit(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? ''),
       clientUuid: json['clientUuid'] ?? json['client_uuid'],
@@ -51,6 +59,7 @@ class Visit {
       productsDiscussed: json['productsDiscussed'] ?? json['products_discussed'],
       samplesDistributed: json['samplesDistributed'] ?? json['samples_distributed'],
       giftsDistributed: json['giftsDistributed'] ?? json['gifts_distributed'],
+      inventoryDistributions: inventory.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
       feedbackNotes: json['feedbackNotes'] ?? json['feedback_notes'] ?? json['notes'],
       nextFollowupDate: json['nextFollowupDate'] ?? json['next_followup_date'],
       latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
@@ -76,6 +85,7 @@ class Visit {
       'productsDiscussed': productsDiscussed,
       'samplesDistributed': samplesDistributed,
       'giftsDistributed': giftsDistributed,
+      'inventoryDistributions': inventoryDistributions,
       'feedbackNotes': feedbackNotes,
       'nextFollowupDate': nextFollowupDate,
       'latitude': latitude,
@@ -99,6 +109,7 @@ class Visit {
       'products_discussed': productsDiscussed,
       'samples_distributed': samplesDistributed,
       'gifts_distributed': giftsDistributed,
+      'inventory_distributions': jsonEncode(inventoryDistributions),
       'feedback_notes': feedbackNotes,
       'next_followup_date': nextFollowupDate,
       'latitude': latitude,

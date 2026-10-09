@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import '../models/doctor.dart';
 import '../models/visit.dart';
 import '../models/product.dart';
+import '../models/geo_facility.dart';
 import 'auth_service.dart';
 
 class ApiService {
@@ -159,5 +160,53 @@ class ApiService {
       },
     );
     return response.data;
+  }
+
+  Future<List<GeoWilaya>> getGeoWilayas() async {
+    final response = await _dio.get('/api/geoalgeria', queryParameters: {'action': 'wilayas'});
+    final items = response.data['wilayas'] as List<dynamic>? ?? [];
+    return items.map((item) => GeoWilaya.fromJson(Map<String, dynamic>.from(item))).toList();
+  }
+
+  Future<List<GeoCommune>> getGeoCommunes(String wilayaCode) async {
+    final response = await _dio.get(
+      '/api/geoalgeria',
+      queryParameters: {'action': 'communes', 'wilaya': wilayaCode},
+    );
+    final items = response.data['communes'] as List<dynamic>? ?? [];
+    return items.map((item) => GeoCommune.fromJson(Map<String, dynamic>.from(item))).toList();
+  }
+
+  Future<Map<String, dynamic>> searchGeoFacilities({
+    String query = '',
+    String wilayaCode = '',
+    String commune = '',
+    String category = 'all',
+    int page = 1,
+  }) async {
+    final response = await _dio.get(
+      '/api/geoalgeria/facilities',
+      queryParameters: {
+        'limit': 30,
+        'page': page,
+        if (query.trim().isNotEmpty) 'q': query.trim(),
+        if (wilayaCode.isNotEmpty) 'wilaya': wilayaCode,
+        if (commune.isNotEmpty) 'commune': commune,
+        if (category != 'all') 'category': category,
+      },
+    );
+    final data = Map<String, dynamic>.from(response.data);
+    data['items'] = ((data['items'] as List<dynamic>?) ?? [])
+        .map((item) => GeoFacility.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+    return data;
+  }
+
+  Future<Map<String, dynamic>> importGeoFacility(GeoFacility facility) async {
+    final response = await _dio.post(
+      '/api/mobile/doctors',
+      data: facility.toCrmContactBody(),
+    );
+    return Map<String, dynamic>.from(response.data);
   }
 }

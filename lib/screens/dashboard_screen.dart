@@ -8,6 +8,7 @@ import 'doctors_screen.dart';
 import 'visit_logger_screen.dart';
 import 'offline_sync_screen.dart';
 import 'visits_history_screen.dart';
+import 'geoalgeria_directory_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -20,7 +21,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _pendingSyncCount = 0;
   bool _isLoading = true;
   int _todayVisitsCount = 0;
-  int _targetVisitsCount = 10;
+  int _targetVisitsCount = 0;
   int _samplesCount = 0;
   int _coveredWilayasCount = 0;
   String _wilayasSummaryText = 'Territoire assigné';
@@ -47,7 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           : int.tryParse(summary?['totalCompleted']?.toString() ?? '0') ?? 0;
       final totalTarget = summary?['totalTarget'] is int
           ? summary!['totalTarget'] as int
-          : int.tryParse(summary?['totalTarget']?.toString() ?? '10') ?? 10;
+          : int.tryParse(summary?['totalTarget']?.toString() ?? '0') ?? 0;
 
       final wilayaNames = territories
           .map((t) => t['wilayaName']?.toString())
@@ -63,7 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() {
           _pendingSyncCount = pending.length;
           _todayVisitsCount = totalCompleted + pending.length;
-          _targetVisitsCount = totalTarget > 0 ? totalTarget : 10;
+          _targetVisitsCount = totalTarget;
           _samplesCount = totalSamplesInStock;
           _coveredWilayasCount = territories.length;
           if (wilayaNames.isNotEmpty) {
@@ -345,6 +346,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const DoctorsScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildActionCard(
+                    title: 'Annuaire National GeoAlgeria',
+                    subtitle: 'Rechercher hôpitaux, cliniques, pharmacies et industriels',
+                    icon: LucideIcons.globe,
+                    color: const Color(0xFF0F766E),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const GeoAlgeriaDirectoryScreen()),
                     ),
                   ),
                   const SizedBox(height: 10),

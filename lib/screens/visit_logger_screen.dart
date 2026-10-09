@@ -27,6 +27,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
   final _samplesCtrl = TextEditingController();
   final _giftsCtrl = TextEditingController();
   final _feedbackCtrl = TextEditingController();
+  final Map<String, TextEditingController> _inventoryQuantityControllers = {};
   
   String _activityType = 'Product presentation';
   final String _purpose = 'Visite de routine & présentation produit';
@@ -52,6 +53,19 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
     super.initState();
     _doctorCtrl = TextEditingController(text: widget.initialDoctorName ?? '');
     _loadListings();
+  }
+
+  @override
+  void dispose() {
+    _doctorCtrl.dispose();
+    _productsCtrl.dispose();
+    _samplesCtrl.dispose();
+    _giftsCtrl.dispose();
+    _feedbackCtrl.dispose();
+    for (final controller in _inventoryQuantityControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _loadListings() async {
@@ -88,8 +102,8 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       if ((cachedP.isNotEmpty || cachedS.isNotEmpty || cachedG.isNotEmpty) && mounted) {
         setState(() {
           _availableProducts = cachedP;
-          _availableSamples = cachedS;
-          _availableGifts = cachedG;
+          _availableSamples = cachedS.where((item) => item.isAllocated && item.quantity > 0).toList();
+          _availableGifts = cachedG.where((item) => item.isAllocated && item.quantity > 0).toList();
         });
       }
 
@@ -108,11 +122,11 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       }
       final liveSamples = (bundle['samples'] as List<SampleBatch>? ?? []).map((sample) => SampleBatch(
         id: sample.id, prodId: sample.prodId, brandName: sample.brandName, expiry: sample.expiry,
-        quantity: (sample.quantity - (reserved['sample:${sample.id}'] ?? 0)).clamp(0, sample.quantity).toInt(), unit: sample.unit,
+        quantity: (sample.quantity - (reserved['sample:${sample.id}'] ?? 0)).clamp(0, sample.quantity).toInt(), unit: sample.unit, isAllocated: sample.isAllocated,
       )).toList();
       final liveGifts = (bundle['gifts'] as List<PromotionalGift>? ?? []).map((gift) => PromotionalGift(
         id: gift.id, giftId: gift.giftId, name: gift.name,
-        quantity: (gift.quantity - (reserved['gift:${gift.id}'] ?? 0)).clamp(0, gift.quantity).toInt(), distributed: gift.distributed,
+        quantity: (gift.quantity - (reserved['gift:${gift.id}'] ?? 0)).clamp(0, gift.quantity).toInt(), distributed: gift.distributed, isAllocated: gift.isAllocated,
       )).toList();
 
       if (liveProducts.isNotEmpty || liveSamples.isNotEmpty || liveGifts.isNotEmpty) {
@@ -124,8 +138,8 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
         if (mounted) {
           setState(() {
             _availableProducts = liveProducts;
-            _availableSamples = liveSamples;
-            _availableGifts = liveGifts;
+            _availableSamples = liveSamples.where((item) => item.isAllocated && item.quantity > 0).toList();
+            _availableGifts = liveGifts.where((item) => item.isAllocated && item.quantity > 0).toList();
           });
         }
       }
@@ -243,9 +257,51 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       _inventorySelections
         ..clear()
         ..addAll(result);
+      for (final entry in result.entries) {
+        _inventoryQuantityControllers.putIfAbsent(entry.key, () => TextEditingController()).text = entry.value.toString();
+      }
       _samplesCtrl.text = sampleSummary.join(', ');
       _giftsCtrl.text = giftSummary.join(', ');
     });
+  }
+
+  void _updateVisitInventoryQuantity(String key, String value, int available) {
+    final quantity = (int.tryParse(value) ?? 0).clamp(0, available).toInt();
+    final sampleSummary = <String>[];
+    final giftSummary = <String>[];
+    for (final entry in _inventorySelections.entries) {
+      final used = entry.key == key ? quantity : entry.value;
+      if (used <= 0) continue;
+      final parts = entry.key.split(':');
+      if (parts.first == 'sample') {
+        final item = _availableSamples.where((sample) => sample.id.toString() == parts.last).firstOrNull;
+        if (item != null) sampleSummary.add('${item.brandName} × $used');
+      } else {
+        final item = _availableGifts.where((gift) => gift.id.toString() == parts.last).firstOrNull;
+        if (item != null) giftSummary.add('${item.name} × $used');
+      }
+    }
+    setState(() {
+      _inventorySelections[key] = quantity;
+      _samplesCtrl.text = sampleSummary.join(', ');
+      _giftsCtrl.text = giftSummary.join(', ');
+    });
+  }
+
+  Widget _visitInventoryQuantityField({required String key, required String title, required int quantity, required int available}) {
+    final controller = _inventoryQuantityControllers.putIfAbsent(key, () => TextEditingController(text: quantity.toString()));
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(children: [
+        Expanded(child: Text('$title · Disponible: $available', style: const TextStyle(fontSize: 12))),
+        SizedBox(width: 88, child: TextFormField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Quantité', isDense: true, border: OutlineInputBorder()),
+          onChanged: (value) => _updateVisitInventoryQuantity(key, value, available),
+        )),
+      ]),
+    );
   }
 
   Widget _inventoryQuantityRow({required String title, required String subtitle, required int max, required int quantity, required ValueChanged<int> onChanged}) {
@@ -367,11 +423,11 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       await dbHelper.enqueueVisit(visitPayload);
       final reservedSamples = _availableSamples.map((sample) {
         final used = _inventorySelections['sample:${sample.id}'] ?? 0;
-        return SampleBatch(id: sample.id, prodId: sample.prodId, brandName: sample.brandName, expiry: sample.expiry, quantity: (sample.quantity - used).clamp(0, sample.quantity).toInt(), unit: sample.unit);
+        return SampleBatch(id: sample.id, prodId: sample.prodId, brandName: sample.brandName, expiry: sample.expiry, quantity: (sample.quantity - used).clamp(0, sample.quantity).toInt(), unit: sample.unit, isAllocated: sample.isAllocated);
       }).toList();
       final reservedGifts = _availableGifts.map((gift) {
         final used = _inventorySelections['gift:${gift.id}'] ?? 0;
-        return PromotionalGift(id: gift.id, giftId: gift.giftId, name: gift.name, quantity: (gift.quantity - used).clamp(0, gift.quantity).toInt(), distributed: gift.distributed);
+        return PromotionalGift(id: gift.id, giftId: gift.giftId, name: gift.name, quantity: (gift.quantity - used).clamp(0, gift.quantity).toInt(), distributed: gift.distributed, isAllocated: gift.isAllocated);
       }).toList();
       setState(() { _availableSamples = reservedSamples; _availableGifts = reservedGifts; });
       await dbHelper.cacheCatalog(products: _availableProducts, samples: reservedSamples, gifts: reservedGifts);
@@ -575,6 +631,16 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
+            for (final sample in _availableSamples.where((item) => (_inventorySelections['sample:${item.id}'] ?? 0) > 0))
+              _visitInventoryQuantityField(
+                key: 'sample:${sample.id}', title: '${sample.brandName} · Lot ${sample.prodId}',
+                quantity: _inventorySelections['sample:${sample.id}'] ?? 0, available: sample.quantity,
+              ),
+            for (final gift in _availableGifts.where((item) => (_inventorySelections['gift:${item.id}'] ?? 0) > 0))
+              _visitInventoryQuantityField(
+                key: 'gift:${gift.id}', title: gift.name,
+                quantity: _inventorySelections['gift:${gift.id}'] ?? 0, available: gift.quantity,
+              ),
             const SizedBox(height: 12),
 
             TextFormField(

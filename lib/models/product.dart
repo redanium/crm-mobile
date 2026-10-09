@@ -76,6 +76,7 @@ class SampleBatch {
   final String expiry;
   final int quantity;
   final String unit;
+  final bool isAllocated;
 
   SampleBatch({
     required this.id,
@@ -84,6 +85,7 @@ class SampleBatch {
     required this.expiry,
     required this.quantity,
     this.unit = 'boîte',
+    this.isAllocated = false,
   });
 
   factory SampleBatch.fromJson(Map<String, dynamic> json) {
@@ -94,6 +96,7 @@ class SampleBatch {
       expiry: json['expiry'] ?? '',
       quantity: json['quantity'] is int ? json['quantity'] : int.tryParse(json['quantity']?.toString() ?? '0') ?? 0,
       unit: json['unit'] ?? 'boîte',
+      isAllocated: json['allocated'] == true || json['isAllocated'] == true,
     );
   }
 
@@ -105,6 +108,7 @@ class SampleBatch {
       'expiry': expiry,
       'quantity': quantity,
       'unit': unit,
+      'is_allocated': isAllocated ? 1 : 0,
     };
   }
 
@@ -116,6 +120,7 @@ class SampleBatch {
       expiry: map['expiry'] ?? '',
       quantity: map['quantity'] is int ? map['quantity'] : int.tryParse(map['quantity']?.toString() ?? '0') ?? 0,
       unit: map['unit'] ?? 'boîte',
+      isAllocated: map['is_allocated'] == 1 || map['is_allocated'] == true,
     );
   }
 }
@@ -126,6 +131,7 @@ class PromotionalGift {
   final String name;
   final int quantity;
   final int distributed;
+  final bool isAllocated;
 
   PromotionalGift({
     required this.id,
@@ -133,6 +139,7 @@ class PromotionalGift {
     required this.name,
     required this.quantity,
     this.distributed = 0,
+    this.isAllocated = false,
   });
 
   factory PromotionalGift.fromJson(Map<String, dynamic> json) {
@@ -142,6 +149,7 @@ class PromotionalGift {
       name: json['name'] ?? '',
       quantity: json['quantity'] is int ? json['quantity'] : int.tryParse(json['quantity']?.toString() ?? '0') ?? 0,
       distributed: json['distributed'] is int ? json['distributed'] : int.tryParse(json['distributed']?.toString() ?? '0') ?? 0,
+      isAllocated: json['allocated'] == true || json['isAllocated'] == true,
     );
   }
 
@@ -152,6 +160,7 @@ class PromotionalGift {
       'name': name,
       'quantity': quantity,
       'distributed': distributed,
+      'is_allocated': isAllocated ? 1 : 0,
     };
   }
 
@@ -162,6 +171,7 @@ class PromotionalGift {
       name: map['name'] ?? '',
       quantity: map['quantity'] is int ? map['quantity'] : int.tryParse(map['quantity']?.toString() ?? '0') ?? 0,
       distributed: map['distributed'] is int ? map['distributed'] : int.tryParse(map['distributed']?.toString() ?? '0') ?? 0,
+      isAllocated: map['is_allocated'] == 1 || map['is_allocated'] == true,
     );
   }
 }

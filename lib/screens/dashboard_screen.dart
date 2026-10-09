@@ -9,6 +9,7 @@ import 'visit_logger_screen.dart';
 import 'offline_sync_screen.dart';
 import 'visits_history_screen.dart';
 import 'geoalgeria_directory_screen.dart';
+import 'inventory_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -85,6 +86,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  void _openDrawerScreen(Widget screen) {
+    Navigator.pop(context);
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen)).then((_) => _loadDashboardData());
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
@@ -92,6 +98,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      drawer: Drawer(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  gradient: const LinearGradient(colors: [Color(0xFF0F766E), Color(0xFF115E59)]),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Icon(LucideIcons.stethoscope, color: Colors.white, size: 24),
+                  const SizedBox(height: 12),
+                  Text(currentUser?.name ?? 'Pharma CRM DZ', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 3),
+                  Text(currentUser?.email ?? 'Délégué Médical', style: const TextStyle(color: Color(0xFFCCFBF1), fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ]),
+              ),
+              ListTile(
+                leading: const Icon(LucideIcons.home, size: 19),
+                title: const Text('Tableau de bord'),
+                selected: true,
+                onTap: () => Navigator.pop(context),
+              ),
+              ListTile(
+                leading: const Icon(LucideIcons.package, size: 19),
+                title: const Text('Échantillons & cadeaux'),
+                subtitle: const Text('Stock attribué par le superviseur'),
+                onTap: () => _openDrawerScreen(const InventoryScreen()),
+              ),
+              const Divider(height: 18),
+              ListTile(
+                leading: const Icon(LucideIcons.stethoscope, size: 19),
+                title: const Text('Médecins & clients'),
+                onTap: () => _openDrawerScreen(const DoctorsScreen()),
+              ),
+              ListTile(
+                leading: const Icon(LucideIcons.mapPin, size: 19),
+                title: const Text('Annuaire GeoAlgeria'),
+                onTap: () => _openDrawerScreen(const GeoAlgeriaDirectoryScreen()),
+              ),
+              ListTile(
+                leading: const Icon(LucideIcons.calendarClock, size: 19),
+                title: const Text('Historique des visites'),
+                onTap: () => _openDrawerScreen(const VisitsHistoryScreen()),
+              ),
+              ListTile(
+                leading: const Icon(LucideIcons.refreshCw, size: 19),
+                title: const Text('Synchronisation hors ligne'),
+                onTap: () => _openDrawerScreen(const OfflineSyncScreen()),
+              ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('Noura Pharma · CRM Mobile', style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade400)),
+              ),
+            ],
+          ),
+        ),
+      ),
       appBar: AppBar(
         title: Row(
           children: [

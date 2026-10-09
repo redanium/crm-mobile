@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 6,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -95,7 +95,8 @@ class DatabaseHelper {
         brand_name TEXT NOT NULL,
         expiry TEXT,
         quantity INTEGER DEFAULT 0,
-        unit TEXT DEFAULT 'boîte'
+        unit TEXT DEFAULT 'boîte',
+        is_allocated INTEGER DEFAULT 0
       )
     ''');
 
@@ -106,7 +107,19 @@ class DatabaseHelper {
         gift_id TEXT NOT NULL,
         name TEXT NOT NULL,
         quantity INTEGER DEFAULT 0,
-        distributed INTEGER DEFAULT 0
+        distributed INTEGER DEFAULT 0,
+        is_allocated INTEGER DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE stock_movements (
+        movement_id TEXT PRIMARY KEY,
+        item_type TEXT,
+        item_name TEXT,
+        movement_type TEXT,
+        quantity INTEGER DEFAULT 0,
+        created_at TEXT
       )
     ''');
   }
@@ -157,6 +170,20 @@ class DatabaseHelper {
     }
     if (oldVersion < 4) {
       try { await db.execute('ALTER TABLE offline_visits ADD COLUMN inventory_distributions TEXT;'); } catch (_) {}
+    }
+    if (oldVersion < 5) {
+      try { await db.execute('ALTER TABLE sample_batches ADD COLUMN is_allocated INTEGER DEFAULT 0;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE promotional_gifts ADD COLUMN is_allocated INTEGER DEFAULT 0;'); } catch (_) {}
+    }
+    if (oldVersion < 6) {
+      await db.execute('''CREATE TABLE IF NOT EXISTS stock_movements (
+        movement_id TEXT PRIMARY KEY,
+        item_type TEXT,
+        item_name TEXT,
+        movement_type TEXT,
+        quantity INTEGER DEFAULT 0,
+        created_at TEXT
+      )''');
     }
   }
 
@@ -280,6 +307,28 @@ class DatabaseHelper {
       batch.insert('promotional_gifts', g.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
     }
     await batch.commit(noResult: true);
+  }
+
+  Future<void> cacheStockMovements(List<Map<String, dynamic>> movements) async {
+    final db = await instance.database;
+    await db.delete('stock_movements');
+    final batch = db.batch();
+    for (final movement in movements) {
+      batch.insert('stock_movements', {
+        'movement_id': movement['id'].toString(),
+        'item_type': movement['itemType']?.toString() ?? '',
+        'item_name': movement['itemName']?.toString() ?? '',
+        'movement_type': movement['movementType']?.toString() ?? '',
+        'quantity': movement['quantity'] is int ? movement['quantity'] : int.tryParse(movement['quantity']?.toString() ?? '0') ?? 0,
+        'created_at': movement['createdAt']?.toString() ?? '',
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<Map<String, dynamic>>> getCachedStockMovements() async {
+    final db = await instance.database;
+    return db.query('stock_movements', orderBy: 'created_at DESC', limit: 50);
   }
 
   Future<List<Product>> getCachedProducts() async {

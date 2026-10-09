@@ -46,7 +46,7 @@ class Visit {
       accountName: json['accountName'] ?? json['account_name'] ?? '',
       activityType: json['activityType'] ?? json['activity_type'] ?? 'Visite Médicale',
       repName: json['repName'] ?? json['rep_name'] ?? 'Délégué Médical',
-      repId: json['repId'] ?? json['rep_id'] ?? 'REP_001',
+      repId: json['repId'] ?? json['rep_id'] ?? '',
       purpose: json['purpose'],
       productsDiscussed: json['productsDiscussed'] ?? json['products_discussed'],
       samplesDistributed: json['samplesDistributed'] ?? json['samples_distributed'],

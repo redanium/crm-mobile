@@ -301,7 +301,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       'next_followup_date': '',
       'latitude': _latitude ?? _selectedDoctor?.latitude,
       'longitude': _longitude ?? _selectedDoctor?.longitude,
-      'wilaya': _selectedDoctor?.wilaya ?? 'Oran · 31',
+      'wilaya': _selectedDoctor?.wilaya ?? '',
       'facility_name': _selectedDoctor?.organization ?? '',
       'created_at': DateTime.now().toIso8601String(),
       'sync_status': 'pending',

@@ -314,7 +314,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600)),
                               subtitle: const Text(
-                                  'Le stock devient disponible après confirmation avec une preuve.',
+                                  'Le stock devient disponible après confirmation. Vous pouvez joindre un scan ou un PDF en justificatif.',
                                   style: TextStyle(fontSize: 11)),
                               value: confirmed,
                               onChanged: (value) =>
@@ -377,13 +377,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     const SnackBar(
                                         content: Text(
                                             'Complétez les informations de réception.')));
-                                return;
-                              }
-                              if (confirmed && documents.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Ajoutez un scan ou un PDF avant de confirmer.')));
                                 return;
                               }
                               refresh(() => _savingReceipt = true);
@@ -508,10 +501,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         onPressed: () => Navigator.pop(dialogContext, false),
                         child: const Text('Annuler')),
                     FilledButton(
-                        onPressed:
-                            documents.isEmpty && existingDocuments.isEmpty
-                                ? null
-                                : () => Navigator.pop(dialogContext, true),
+                        onPressed: () => Navigator.pop(dialogContext, true),
                         child: const Text('Confirmer')),
                   ],
                 )));
@@ -601,7 +591,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     color: Color(0xFF0F172A))),
                             const SizedBox(height: 4),
                             const Text(
-                                'Scannez un justificatif ou joignez un PDF. Le stock reste indisponible tant que la réception n’est pas confirmée.',
+                                'Vous pouvez joindre un scan ou un PDF. Le stock reste indisponible tant que la réception n’est pas confirmée.',
                                 style: TextStyle(
                                     fontSize: 11, color: Color(0xFF64748B))),
                             const SizedBox(height: 10),

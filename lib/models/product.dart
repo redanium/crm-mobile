@@ -80,9 +80,21 @@ class SampleBatch {
   final bool isAllocated;
 
   bool get isExpired {
-    final parsed = DateTime.tryParse(expiry);
-    if (parsed == null) return false;
-    final expiresAt = DateTime(parsed.year, parsed.month, parsed.day, 23, 59, 59, 999);
+    final monthYear = RegExp(r'^(\d{1,2})\s*[/-]\s*(\d{4})$').firstMatch(expiry.trim());
+    DateTime? expiresAt;
+    if (monthYear != null) {
+      final month = int.tryParse(monthYear.group(1)!);
+      final year = int.tryParse(monthYear.group(2)!);
+      if (month != null && year != null && month >= 1 && month <= 12) {
+        expiresAt = DateTime(year, month + 1, 0, 23, 59, 59, 999);
+      }
+    } else {
+      final parsed = DateTime.tryParse(expiry);
+      if (parsed != null) {
+        expiresAt = DateTime(parsed.year, parsed.month, parsed.day, 23, 59, 59, 999);
+      }
+    }
+    if (expiresAt == null) return false;
     return expiresAt.isBefore(DateTime.now());
   }
 

@@ -146,14 +146,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   _sectionTitle('Échantillons médicaux', LucideIcons.package, const Color(0xFF0F766E), _samples.length),
                   const SizedBox(height: 9),
                   if (_samples.isEmpty)
-                    _emptyCard('Aucun échantillon attribué', 'Votre superviseur n’a pas encore ajouté de lot à votre stock.')
+                    _emptyCard('Aucun échantillon attribué', 'Les lots transmis dans votre hiérarchie apparaîtront ici.')
                   else
                     ..._samples.map(_sampleCard),
                   const SizedBox(height: 20),
                   _sectionTitle('Cadeaux & objets promotionnels', LucideIcons.gift, const Color(0xFF7C3AED), _gifts.length),
                   const SizedBox(height: 9),
                   if (_gifts.isEmpty)
-                    _emptyCard('Aucun cadeau attribué', 'Les cadeaux remis par votre superviseur apparaîtront ici.')
+                    _emptyCard('Aucun cadeau attribué', 'Les cadeaux transmis dans votre hiérarchie apparaîtront ici.')
                   else
                     ..._gifts.map(_giftCard),
                   const SizedBox(height: 20),
@@ -181,12 +181,59 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Widget _sampleCard(SampleBatch sample) => _stockCard(
         title: sample.brandName,
         code: 'Lot ${sample.prodId}',
-        detail: 'Expiration : ${sample.expiry}',
+        detail: sample.isExpired ? 'EXPIRÉ · À détruire · Expiration : ${sample.expiry}' : 'Expiration : ${sample.expiry}',
         quantity: sample.quantity,
         unit: sample.unit,
-        color: const Color(0xFF0F766E),
+        color: sample.isExpired ? const Color(0xFFDC2626) : const Color(0xFF0F766E),
         icon: LucideIcons.package,
+        isExpired: sample.isExpired,
+        onDestroy: sample.isExpired && sample.quantity > 0 ? () => _destroyExpiredSample(sample) : null,
       );
+
+  Future<void> _destroyExpiredSample(SampleBatch sample) async {
+    final controller = TextEditingController(text: sample.quantity.toString());
+    final quantity = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Détruire le lot expiré'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${sample.brandName} · Lot ${sample.prodId}\nStock restant : ${sample.quantity} ${sample.unit}'),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Quantité à détruire', border: OutlineInputBorder()),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuler')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () {
+              final value = int.tryParse(controller.text.trim());
+              if (value != null && value > 0 && value <= sample.quantity) Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Confirmer la destruction'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (quantity == null || !mounted) return;
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final result = await api.destroyExpiredSample(sampleId: sample.id, quantity: quantity);
+      if (!mounted) return;
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Stock expiré détruit et mouvement enregistré.')));
+        await _loadInventory();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['error']?.toString() ?? 'Destruction impossible.')));
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Destruction impossible : $error')));
+    }
+  }
 
   Widget _giftCard(PromotionalGift gift) => _stockCard(
         title: gift.name,
@@ -205,42 +252,49 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final rawDate = movement['created_at']?.toString() ?? movement['createdAt']?.toString() ?? '';
     final date = DateTime.tryParse(rawDate)?.toLocal();
     final quantity = int.tryParse(movement['quantity']?.toString() ?? '0') ?? 0;
-    final isUse = type == 'visit_use';
+    final note = movement['notes']?.toString() ?? '';
+    final sourceName = movement['sourceName']?.toString() ?? movement['source_name']?.toString() ?? '';
+    final isDestruction = type == 'adjustment' && note.toLowerCase().contains('destroy');
+    final isRemoval = type == 'visit_use' || isDestruction;
     final label = switch (type) {
-      'allocation' => 'Attribué par le superviseur',
+      'allocation' => sourceName.isNotEmpty ? 'Transféré par $sourceName' : 'Transfert hiérarchique',
       'visit_use' => 'Distribué pendant une visite',
       'return' => 'Retour au stock',
-      'adjustment' => 'Ajustement du stock',
+      'adjustment' => isDestruction ? 'Lot expiré détruit' : 'Ajustement du stock',
       'receipt' => 'Réception de stock',
       _ => type.replaceAll('_', ' '),
     };
-    final color = isUse ? const Color(0xFFDC2626) : const Color(0xFF0F766E);
+    final color = isRemoval ? const Color(0xFFDC2626) : const Color(0xFF0F766E);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(13), border: Border.all(color: const Color(0xFFE2E8F0))),
       child: Row(children: [
-        Container(width: 34, height: 34, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(isUse ? LucideIcons.arrowUpRight : LucideIcons.arrowDownLeft, color: color, size: 17)),
+        Container(width: 34, height: 34, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(isRemoval ? LucideIcons.arrowUpRight : LucideIcons.arrowDownLeft, color: color, size: 17)),
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0F172A))),
           const SizedBox(height: 3),
           Text('${itemType == 'sample' ? 'Échantillon' : 'Cadeau'} · $label', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+          if (note.isNotEmpty && !isDestruction) ...[
+            const SizedBox(height: 2),
+            Text(note, style: const TextStyle(fontSize: 9, color: Color(0xFF94A3B8)), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
           if (date != null) ...[
             const SizedBox(height: 2),
             Text('${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} · ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}', style: const TextStyle(fontSize: 9, color: Color(0xFF94A3B8))),
           ],
         ])),
-        Text('${isUse ? '−' : '+'}$quantity', style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
+        Text('${isRemoval ? '−' : '+'}$quantity', style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
       ]),
     );
   }
 
-  Widget _stockCard({required String title, required String code, required String detail, required int quantity, required String unit, required Color color, required IconData icon}) {
+  Widget _stockCard({required String title, required String code, required String detail, required int quantity, required String unit, required Color color, required IconData icon, bool isExpired = false, VoidCallback? onDestroy}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 9),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(color: isExpired ? const Color(0xFFFEF2F2) : Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: isExpired ? const Color(0xFFEF4444) : const Color(0xFFE2E8F0), width: isExpired ? 1.5 : 1)),
       child: Row(children: [
         Container(width: 40, height: 40, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: color, size: 19)),
         const SizedBox(width: 11),
@@ -248,6 +302,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
           Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A))),
           const SizedBox(height: 3),
           Text('$code · $detail', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)), maxLines: 2, overflow: TextOverflow.ellipsis),
+          if (onDestroy != null) ...[
+            const SizedBox(height: 6),
+            TextButton.icon(onPressed: onDestroy, icon: const Icon(LucideIcons.trash2, size: 13), label: const Text('Détruire le stock expiré', style: TextStyle(fontSize: 10)), style: TextButton.styleFrom(foregroundColor: const Color(0xFFB91C1C), padding: EdgeInsets.zero, minimumSize: const Size(0, 26), alignment: Alignment.centerLeft)),
+          ],
         ])),
         const SizedBox(width: 8),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [

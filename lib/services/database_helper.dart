@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -119,7 +119,10 @@ class DatabaseHelper {
         item_name TEXT,
         movement_type TEXT,
         quantity INTEGER DEFAULT 0,
-        created_at TEXT
+        created_at TEXT,
+        source_name TEXT,
+        destination_name TEXT,
+        notes TEXT
       )
     ''');
   }
@@ -182,8 +185,16 @@ class DatabaseHelper {
         item_name TEXT,
         movement_type TEXT,
         quantity INTEGER DEFAULT 0,
-        created_at TEXT
+        created_at TEXT,
+        source_name TEXT,
+        destination_name TEXT,
+        notes TEXT
       )''');
+    }
+    if (oldVersion < 7) {
+      for (final column in ['source_name', 'destination_name', 'notes']) {
+        try { await db.execute('ALTER TABLE stock_movements ADD COLUMN $column TEXT;'); } catch (_) {}
+      }
     }
   }
 
@@ -321,6 +332,9 @@ class DatabaseHelper {
         'movement_type': movement['movementType']?.toString() ?? '',
         'quantity': movement['quantity'] is int ? movement['quantity'] : int.tryParse(movement['quantity']?.toString() ?? '0') ?? 0,
         'created_at': movement['createdAt']?.toString() ?? '',
+        'source_name': movement['sourceName']?.toString(),
+        'destination_name': movement['destinationName']?.toString(),
+        'notes': movement['notes']?.toString(),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
     await batch.commit(noResult: true);

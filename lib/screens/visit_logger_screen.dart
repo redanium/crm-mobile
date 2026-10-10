@@ -102,7 +102,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       if ((cachedP.isNotEmpty || cachedS.isNotEmpty || cachedG.isNotEmpty) && mounted) {
         setState(() {
           _availableProducts = cachedP;
-          _availableSamples = cachedS.where((item) => item.isAllocated && item.quantity > 0).toList();
+          _availableSamples = cachedS.where((item) => item.isAllocated && item.quantity > 0 && !item.isExpired).toList();
           _availableGifts = cachedG.where((item) => item.isAllocated && item.quantity > 0).toList();
         });
       }
@@ -138,7 +138,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
         if (mounted) {
           setState(() {
             _availableProducts = liveProducts;
-            _availableSamples = liveSamples.where((item) => item.isAllocated && item.quantity > 0).toList();
+            _availableSamples = liveSamples.where((item) => item.isAllocated && item.quantity > 0 && !item.isExpired).toList();
             _availableGifts = liveGifts.where((item) => item.isAllocated && item.quantity > 0).toList();
           });
         }

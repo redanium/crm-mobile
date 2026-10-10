@@ -26,6 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _samplesCount = 0;
   int _coveredWilayasCount = 0;
   String _wilayasSummaryText = 'Territoire assigné';
+  List<Map<String, dynamic>> _assignedZones = [];
 
   @override
   void initState() {
@@ -42,6 +43,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final summaryRes = await apiService.getTerritorySummary();
       final territories = summaryRes['territories'] as List<dynamic>? ?? [];
+      final designedZones = (summaryRes['designedZones'] as List<dynamic>? ?? [])
+          .map((zone) => Map<String, dynamic>.from(zone as Map))
+          .where((zone) => zone['administrativeLevel'] != 'wilaya')
+          .toList();
       final summary = summaryRes['summary'] as Map<String, dynamic>?;
 
       final totalCompleted = summary?['totalCompleted'] is int
@@ -51,15 +56,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ? summary!['totalTarget'] as int
           : int.tryParse(summary?['totalTarget']?.toString() ?? '0') ?? 0;
 
-      final wilayaNames = territories
+      final zoneSource = designedZones.isNotEmpty ? designedZones : territories.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+      final wilayaNames = zoneSource
           .map((t) => t['wilayaName']?.toString())
           .where((w) => w != null && w.isNotEmpty)
+          .toSet()
           .take(3)
           .join(', ');
 
       // Also compute samples count from local cache
       final samplesList = await dbHelper.getCachedSamples();
-      final totalSamplesInStock = samplesList.fold<int>(0, (sum, s) => sum + s.quantity);
+      final totalSamplesInStock = samplesList
+          .where((sample) => sample.isAllocated && !sample.isExpired)
+          .fold<int>(0, (sum, sample) => sum + sample.quantity);
 
       if (mounted) {
         setState(() {
@@ -67,7 +76,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _todayVisitsCount = totalCompleted + pending.length;
           _targetVisitsCount = totalTarget;
           _samplesCount = totalSamplesInStock;
-          _coveredWilayasCount = territories.length;
+          _coveredWilayasCount = summary?['totalWilayas'] is int
+              ? summary!['totalWilayas'] as int
+              : zoneSource.map((zone) => zone['wilayaCode']?.toString()).where((code) => code != null && code.isNotEmpty).toSet().length;
+          _assignedZones = designedZones;
           if (wilayaNames.isNotEmpty) {
             _wilayasSummaryText = wilayaNames;
           }
@@ -127,7 +139,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ListTile(
                 leading: const Icon(LucideIcons.package, size: 19),
                 title: const Text('Échantillons & cadeaux'),
-                subtitle: const Text('Stock attribué par le superviseur'),
+                subtitle: const Text('Stock transmis dans la hiérarchie'),
                 onTap: () => _openDrawerScreen(const InventoryScreen()),
               ),
               const Divider(height: 18),
@@ -370,6 +382,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
 
+                  if (_assignedZones.isNotEmpty) ...[
+                    const SizedBox(height: 22),
+                    const Text('Mes secteurs attribués', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B))),
+                    const SizedBox(height: 10),
+                    ..._assignedZones.map(_buildAssignedZoneCard),
+                  ],
+
                   const SizedBox(height: 24),
                   const Text(
                     'Actions Rapides sur le Terrain',
@@ -444,6 +463,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildAssignedZoneCard(Map<String, dynamic> zone) {
+    final target = int.tryParse((zone['targetVisits'] ?? zone['globalTargetVisits'] ?? 0).toString()) ?? 0;
+    final wilaya = zone['wilayaName']?.toString() ?? 'Wilaya';
+    final parent = zone['parentTerritoryName']?.toString();
+    final name = zone['name']?.toString() ?? 'Secteur';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E8F0))),
+      child: Row(children: [
+        Container(width: 36, height: 36, decoration: BoxDecoration(color: const Color(0xFF0F766E).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(11)), child: const Icon(LucideIcons.mapPin, color: Color(0xFF0F766E), size: 18)),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)), maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 3),
+          Text([wilaya, if (parent != null && parent.isNotEmpty) 'via $parent'].join(' · '), style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)), maxLines: 1, overflow: TextOverflow.ellipsis),
+        ])),
+        const SizedBox(width: 8),
+        Text('$target visites prévues', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF0F766E))),
+      ]),
     );
   }
 

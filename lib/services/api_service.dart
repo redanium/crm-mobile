@@ -143,12 +143,25 @@ class ApiService {
     final giftsData = (response.data['gifts'] as List<dynamic>? ?? [])
         .map((json) => PromotionalGift.fromJson(json))
         .toList();
+    final movements = (response.data['movements'] as List<dynamic>? ?? [])
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
 
     return {
       'products': productsData,
       'samples': samplesData,
       'gifts': giftsData,
+      'movements': movements,
     };
+  }
+
+  Future<Map<String, dynamic>> destroyExpiredSample({required int sampleId, required int quantity}) async {
+    final response = await _dio.post('/api/mobile/products', data: {
+      'action': 'destroy-expired-sample',
+      'sampleId': sampleId,
+      'quantity': quantity,
+    });
+    return Map<String, dynamic>.from(response.data);
   }
 
   /// Fetch rep territory quotas & assigned wilayas

@@ -78,6 +78,13 @@ class SampleBatch {
   final String unit;
   final bool isAllocated;
 
+  bool get isExpired {
+    final parsed = DateTime.tryParse(expiry);
+    if (parsed == null) return false;
+    final expiresAt = DateTime(parsed.year, parsed.month, parsed.day, 23, 59, 59, 999);
+    return expiresAt.isBefore(DateTime.now());
+  }
+
   SampleBatch({
     required this.id,
     required this.prodId,

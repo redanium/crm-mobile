@@ -9,6 +9,7 @@ class Visit {
   final String repId;
   final String? purpose;
   final String? productsDiscussed;
+  final List<Map<String, dynamic>> productQuantities;
   final String? samplesDistributed;
   final String? giftsDistributed;
   final List<Map<String, dynamic>> inventoryDistributions;
@@ -31,6 +32,7 @@ class Visit {
     required this.repId,
     this.purpose,
     this.productsDiscussed,
+    this.productQuantities = const [],
     this.samplesDistributed,
     this.giftsDistributed,
     this.inventoryDistributions = const [],
@@ -54,6 +56,10 @@ class Visit {
     final documents = rawDocuments is String
         ? (jsonDecode(rawDocuments) as List<dynamic>? ?? [])
         : (rawDocuments as List<dynamic>? ?? []);
+    final rawProductQuantities = json['productQuantities'] ?? json['product_quantities'];
+    final productQuantities = rawProductQuantities is String
+        ? (jsonDecode(rawProductQuantities) as List<dynamic>? ?? [])
+        : (rawProductQuantities as List<dynamic>? ?? []);
     return Visit(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? ''),
       clientUuid: json['clientUuid'] ?? json['client_uuid'],
@@ -63,6 +69,7 @@ class Visit {
       repId: json['repId'] ?? json['rep_id'] ?? '',
       purpose: json['purpose'],
       productsDiscussed: json['productsDiscussed'] ?? json['products_discussed'],
+      productQuantities: productQuantities.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
       samplesDistributed: json['samplesDistributed'] ?? json['samples_distributed'],
       giftsDistributed: json['giftsDistributed'] ?? json['gifts_distributed'],
       inventoryDistributions: inventory.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
@@ -90,6 +97,7 @@ class Visit {
       'repId': repId,
       'purpose': purpose,
       'productsDiscussed': productsDiscussed,
+      'productQuantities': productQuantities,
       'samplesDistributed': samplesDistributed,
       'giftsDistributed': giftsDistributed,
       'inventoryDistributions': inventoryDistributions,
@@ -115,6 +123,7 @@ class Visit {
       'rep_id': repId,
       'purpose': purpose,
       'products_discussed': productsDiscussed,
+      'product_quantities': jsonEncode(productQuantities),
       'samples_distributed': samplesDistributed,
       'gifts_distributed': giftsDistributed,
       'inventory_distributions': jsonEncode(inventoryDistributions),

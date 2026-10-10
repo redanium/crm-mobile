@@ -52,6 +52,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
 
   // Selected items lists
   List<String> _selectedProducts = [];
+  final Map<String, int> _productQuantities = {};
   final Map<String, int> _inventorySelections = {};
 
   Doctor? _selectedDoctor;
@@ -310,7 +311,7 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       title: 'Sélectionner un Médecin / Client',
       items: items,
       searchHint: 'Rechercher médecin, hôpital, wilaya...',
-      allowCustom: true,
+      allowCustom: false,
     );
 
     if (picked != null) {
@@ -354,6 +355,10 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
     if (pickedList != null) {
       setState(() {
         _selectedProducts = pickedList.map((i) => i.id).toList();
+        _productQuantities.removeWhere((name, _) => !_selectedProducts.contains(name));
+        for (final name in _selectedProducts) {
+          _productQuantities.putIfAbsent(name, () => 1);
+        }
         _productsCtrl.text = _selectedProducts.join(', ');
       });
     }
@@ -588,6 +593,12 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
 
   Future<void> _saveVisit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedProducts.any((name) => (_productQuantities[name] ?? 0) <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Saisissez une quantité positive pour chaque produit.'),
+          backgroundColor: Colors.red));
+      return;
+    }
     if (!_proofDocuments
         .any((document) => document['documentType'] == 'visit_proof')) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -617,6 +628,10 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       'rep_id': repId,
       'purpose': _purpose,
       'products_discussed': _productsCtrl.text.trim(),
+      'product_quantities': jsonEncode(_selectedProducts.map((name) {
+        final product = _availableProducts.where((item) => item.name == name).firstOrNull;
+        return {'productId': product?.id, 'quantity': _productQuantities[name] ?? 1};
+      }).where((entry) => entry['productId'] != null).toList()),
       'samples_distributed': _samplesCtrl.text.trim(),
       'gifts_distributed': _giftsCtrl.text.trim(),
       'inventory_distributions': jsonEncode(_inventorySelections.entries
@@ -963,6 +978,19 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
                     OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
+            if (_selectedProducts.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text('Quantités de produits discutées',
+                  style: Theme.of(context).textTheme.labelLarge),
+              for (final productName in _selectedProducts)
+                _inventoryQuantityRow(
+                  title: productName,
+                  subtitle: 'Quantité présentée pendant la visite',
+                  max: 999999,
+                  quantity: _productQuantities[productName] ?? 1,
+                  onChanged: (value) => setState(() => _productQuantities[productName] = value),
+                ),
+            ],
             const SizedBox(height: 12),
 
             TextFormField(

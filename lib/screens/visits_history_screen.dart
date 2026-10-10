@@ -150,6 +150,7 @@ class _VisitsHistoryScreenState extends State<VisitsHistoryScreen> {
             repId: v.repId,
             purpose: v.purpose,
             productsDiscussed: v.productsDiscussed,
+            productQuantities: v.productQuantities,
             samplesDistributed: v.samplesDistributed,
             giftsDistributed: v.giftsDistributed,
             feedbackNotes: v.feedbackNotes,

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/doctor.dart';
@@ -22,7 +23,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 9,
+      version: 10,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -57,6 +58,7 @@ class DatabaseHelper {
         rep_id TEXT NOT NULL,
         purpose TEXT,
         products_discussed TEXT,
+        product_quantities TEXT,
         samples_distributed TEXT,
         gifts_distributed TEXT,
         inventory_distributions TEXT,
@@ -207,6 +209,9 @@ class DatabaseHelper {
     if (oldVersion < 9) {
       try { await db.execute('ALTER TABLE offline_visits ADD COLUMN proof_documents TEXT;'); } catch (_) {}
     }
+    if (oldVersion < 10) {
+      try { await db.execute('ALTER TABLE offline_visits ADD COLUMN product_quantities TEXT;'); } catch (_) {}
+    }
   }
 
   // --- Offline Visits Queue Operations ---
@@ -274,6 +279,7 @@ class DatabaseHelper {
           'rep_id': v.repId,
           'purpose': v.purpose,
           'products_discussed': v.productsDiscussed,
+          'product_quantities': jsonEncode(v.productQuantities),
           'samples_distributed': v.samplesDistributed,
           'gifts_distributed': v.giftsDistributed,
           'feedback_notes': v.feedbackNotes,

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/database_helper.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
+import 'services/app_branding_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/login_screen.dart';
 
@@ -25,12 +27,15 @@ void main() async {
     customBaseUrl: authService.baseUrl,
     authService: authService,
   );
+  final brandingService = AppBrandingService(apiService);
+  unawaited(brandingService.load());
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthService>.value(value: authService),
         Provider<ApiService>.value(value: apiService),
+        ChangeNotifierProvider<AppBrandingService>.value(value: brandingService),
         Provider<DatabaseHelper>.value(value: dbHelper),
       ],
       child: const PharmaCrmApp(),
@@ -43,8 +48,8 @@ class PharmaCrmApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Pharma CRM DZ - Délégué Médical',
+    return Consumer<AppBrandingService>(builder: (context, brandingService, _) => MaterialApp(
+      title: '${brandingService.branding.appName} - CRM Mobile',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -71,7 +76,7 @@ class PharmaCrmApp extends StatelessWidget {
         ),
       ),
       home: const AuthGate(),
-    );
+    ));
   }
 }
 

@@ -65,6 +65,13 @@ class ApiService {
     _dio.options.baseUrl = newUrl;
   }
 
+  /// Fetch the public app branding so mobile mirrors the web CRM configuration.
+  Future<Map<String, dynamic>> getAppBranding() async {
+    final response = await _dio.get('/api/mobile/branding');
+    final payload = Map<String, dynamic>.from(response.data as Map);
+    return Map<String, dynamic>.from(payload['branding'] as Map? ?? const {});
+  }
+
   /// Fetch medical doctors / HCPs assigned to this representative
   Future<List<Doctor>> getDoctors({String? wilaya, String? search}) async {
     final response = await _dio.get(

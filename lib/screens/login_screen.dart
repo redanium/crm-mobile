@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/app_branding_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -66,6 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
+    final branding = Provider.of<AppBrandingService>(context).branding;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -100,7 +102,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ],
                         ),
-                        child: const Icon(
+                        child: branding.logoBytes != null
+                            ? ClipRRect(borderRadius: BorderRadius.circular(20), child: Image.memory(branding.logoBytes!, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(LucideIcons.stethoscope, color: Colors.white, size: 38)))
+                            : const Icon(
                           LucideIcons.stethoscope,
                           color: Colors.white,
                           size: 38,
@@ -108,8 +112,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
-                      'Pharma CRM DZ',
+                    Text(
+                      branding.appName,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 26,
@@ -119,8 +123,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Portail Délégué Médical • Field Companion',
+                    Text(
+                      branding.appNameSub,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -128,6 +132,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    if (branding.isoLogoBytes != null) ...[
+                      const SizedBox(height: 14),
+                      Center(child: Image.memory(branding.isoLogoBytes!, height: 30, fit: BoxFit.contain)),
+                    ],
                     const SizedBox(height: 32),
 
                     // Error Banner if login fails

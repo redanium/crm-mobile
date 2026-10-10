@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/database_helper.dart';
+import '../services/app_branding_service.dart';
 import 'doctors_screen.dart';
 import 'visit_logger_screen.dart';
 import 'offline_sync_screen.dart';
@@ -37,6 +39,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadDashboardData() async {
     setState(() => _isLoading = true);
+    unawaited(Provider.of<AppBrandingService>(context, listen: false).load());
     final dbHelper = Provider.of<DatabaseHelper>(context, listen: false);
     final apiService = Provider.of<ApiService>(context, listen: false);
 
@@ -108,6 +111,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     final currentUser = authService.currentUser;
+    final branding = Provider.of<AppBrandingService>(context).branding;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -124,7 +128,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   gradient: const LinearGradient(colors: [Color(0xFF0F766E), Color(0xFF115E59)]),
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Icon(LucideIcons.stethoscope, color: Colors.white, size: 24),
+                  if (branding.logoBytes != null)
+                    ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.memory(branding.logoBytes!, width: 28, height: 28, fit: BoxFit.contain))
+                  else
+                    const Icon(LucideIcons.stethoscope, color: Colors.white, size: 24),
+                  const SizedBox(height: 12),
+                  Text(branding.appName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (branding.appNameSub.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(branding.appNameSub, style: const TextStyle(color: Color(0xFFCCFBF1), fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
                   const SizedBox(height: 12),
                   Text(currentUser?.name ?? 'Pharma CRM DZ', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                   const SizedBox(height: 3),
@@ -173,7 +186,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const Spacer(),
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Noura Pharma · CRM Mobile', style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade400)),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text('${branding.appName} · CRM Mobile', style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade400), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (branding.isoLogoBytes != null) ...[
+                    const SizedBox(height: 8),
+                    Image.memory(branding.isoLogoBytes!, height: 24, fit: BoxFit.contain),
+                  ],
+                ]),
               ),
             ],
           ),
@@ -188,7 +207,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: const Color(0xFF0F766E).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(LucideIcons.stethoscope, color: Color(0xFF0F766E), size: 20),
+              child: branding.logoBytes != null
+                  ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.memory(branding.logoBytes!, width: 20, height: 20, fit: BoxFit.contain))
+                  : const Icon(LucideIcons.stethoscope, color: Color(0xFF0F766E), size: 20),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -196,14 +217,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    currentUser?.name ?? 'Pharma CRM DZ',
+                    branding.appName,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    currentUser?.email.isNotEmpty == true
-                        ? currentUser!.email
-                        : (currentUser?.role != null ? '${currentUser!.role!.toUpperCase()} • CRM Mobile' : 'Délégué Médical • Noura Pharma'),
+                    branding.appNameSub,
                     style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                     overflow: TextOverflow.ellipsis,
                   ),

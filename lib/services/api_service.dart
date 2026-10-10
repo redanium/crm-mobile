@@ -113,14 +113,21 @@ class ApiService {
   Future<Map<String, dynamic>> logVisit(Visit visit) async {
     final visitJson = visit.toJson()..remove('proofDocuments');
     final form = FormData.fromMap({'visit': jsonEncode(visitJson)});
-    form.fields.add(MapEntry('documentTypes', jsonEncode(visit.proofDocuments.map((doc) => doc['documentType'] ?? 'attachment').toList())));
+    form.fields.add(MapEntry(
+        'documentTypes',
+        jsonEncode(visit.proofDocuments
+            .map((doc) => doc['documentType'] ?? 'attachment')
+            .toList())));
     for (final document in visit.proofDocuments) {
       final bytes = base64Decode(document['dataBase64']?.toString() ?? '');
-      form.files.add(MapEntry('documents', MultipartFile.fromBytes(
-        bytes,
-        filename: document['fileName']?.toString() ?? 'visit-document.jpg',
-        contentType: MediaType.parse(document['mimeType']?.toString() ?? 'image/jpeg'),
-      )));
+      form.files.add(MapEntry(
+          'documents',
+          MultipartFile.fromBytes(
+            bytes,
+            filename: document['fileName']?.toString() ?? 'visit-document.jpg',
+            contentType: MediaType.parse(
+                document['mimeType']?.toString() ?? 'image/jpeg'),
+          )));
     }
     final response = await _dio.post(
       '/api/mobile/visits',
@@ -142,15 +149,33 @@ class ApiService {
         final visitModel = Visit.fromJson({...visit, 'rep_id': repId});
         final result = await logVisit(visitModel);
         final uuid = visit['client_uuid']?.toString();
-        if (result['success'] == true && uuid != null) syncedUuids.add(uuid);
-        else failures.add({'clientUuid': uuid ?? '', 'error': result['error']?.toString() ?? 'Sync failed'});
+        if (result['success'] == true && uuid != null)
+          syncedUuids.add(uuid);
+        else
+          failures.add({
+            'clientUuid': uuid ?? '',
+            'error': result['error']?.toString() ?? 'Sync failed'
+          });
       } on DioException catch (error) {
-        failures.add({'clientUuid': visit['client_uuid']?.toString() ?? '', 'error': error.response?.data?['error']?.toString() ?? error.message ?? 'Sync failed'});
+        failures.add({
+          'clientUuid': visit['client_uuid']?.toString() ?? '',
+          'error': error.response?.data?['error']?.toString() ??
+              error.message ??
+              'Sync failed'
+        });
       } catch (error) {
-        failures.add({'clientUuid': visit['client_uuid']?.toString() ?? '', 'error': error.toString()});
+        failures.add({
+          'clientUuid': visit['client_uuid']?.toString() ?? '',
+          'error': error.toString()
+        });
       }
     }
-    return {'success': failures.isEmpty, 'processedCount': syncedUuids.length, 'syncedUuids': syncedUuids, 'failures': failures};
+    return {
+      'success': failures.isEmpty,
+      'processedCount': syncedUuids.length,
+      'syncedUuids': syncedUuids,
+      'failures': failures
+    };
   }
 
   /// Fetch medicine catalog and available sample inventory
@@ -161,12 +186,15 @@ class ApiService {
   }
 
   /// Search the CRM's French BDPM medicine directory (read-only on mobile).
-  Future<List<MedicineDirectoryEntry>> searchMedicineDirectory(String query) async {
-    final response = await _dio.get('/api/medicines-directory', queryParameters: {'q': query});
+  Future<List<MedicineDirectoryEntry>> searchMedicineDirectory(
+      String query) async {
+    final response = await _dio
+        .get('/api/medicines-directory', queryParameters: {'q': query});
     final data = Map<String, dynamic>.from(response.data as Map);
     final items = data['items'] as List<dynamic>? ?? [];
     return items
-        .map((item) => MedicineDirectoryEntry.fromJson(Map<String, dynamic>.from(item as Map)))
+        .map((item) => MedicineDirectoryEntry.fromJson(
+            Map<String, dynamic>.from(item as Map)))
         .toList();
   }
 
@@ -185,16 +213,69 @@ class ApiService {
     final movements = (response.data['movements'] as List<dynamic>? ?? [])
         .map((item) => Map<String, dynamic>.from(item as Map))
         .toList();
+    final pendingReceipts =
+        (response.data['pendingReceipts'] as List<dynamic>? ?? [])
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
 
     return {
       'products': productsData,
       'samples': samplesData,
       'gifts': giftsData,
       'movements': movements,
+      'pendingReceipts': pendingReceipts,
     };
   }
 
-  Future<Map<String, dynamic>> destroyExpiredSample({required int sampleId, required int quantity}) async {
+  Future<Map<String, dynamic>> submitInventoryReceipt({
+    required String itemType,
+    required Map<String, String> fields,
+    required bool confirmed,
+    required List<Map<String, dynamic>> documents,
+  }) async {
+    final form = FormData.fromMap(
+        {...fields, 'itemType': itemType, 'confirmed': confirmed.toString()});
+    for (final document in documents) {
+      final bytes = base64Decode(document['dataBase64']?.toString() ?? '');
+      form.files.add(MapEntry(
+          'documents',
+          MultipartFile.fromBytes(
+            bytes,
+            filename: document['fileName']?.toString() ?? 'receipt-proof.jpg',
+            contentType: MediaType.parse(
+                document['mimeType']?.toString() ?? 'image/jpeg'),
+          )));
+    }
+    final response = await _dio.post('/api/inventory/receipts',
+        data: form,
+        options: Options(contentType: Headers.multipartFormDataContentType));
+    return Map<String, dynamic>.from(response.data);
+  }
+
+  Future<Map<String, dynamic>> confirmInventoryReceipt({
+    required int movementId,
+    required List<Map<String, dynamic>> documents,
+  }) async {
+    final form = FormData.fromMap({'movementId': movementId.toString()});
+    for (final document in documents) {
+      final bytes = base64Decode(document['dataBase64']?.toString() ?? '');
+      form.files.add(MapEntry(
+          'documents',
+          MultipartFile.fromBytes(
+            bytes,
+            filename: document['fileName']?.toString() ?? 'receipt-proof.jpg',
+            contentType: MediaType.parse(
+                document['mimeType']?.toString() ?? 'image/jpeg'),
+          )));
+    }
+    final response = await _dio.post('/api/inventory/receipts',
+        data: form,
+        options: Options(contentType: Headers.multipartFormDataContentType));
+    return Map<String, dynamic>.from(response.data);
+  }
+
+  Future<Map<String, dynamic>> destroyExpiredSample(
+      {required int sampleId, required int quantity}) async {
     final response = await _dio.post('/api/mobile/products', data: {
       'action': 'destroy-expired-sample',
       'sampleId': sampleId,
@@ -215,9 +296,12 @@ class ApiService {
   }
 
   Future<List<GeoWilaya>> getGeoWilayas() async {
-    final response = await _dio.get('/api/geoalgeria', queryParameters: {'action': 'wilayas'});
+    final response = await _dio
+        .get('/api/geoalgeria', queryParameters: {'action': 'wilayas'});
     final items = response.data['wilayas'] as List<dynamic>? ?? [];
-    return items.map((item) => GeoWilaya.fromJson(Map<String, dynamic>.from(item))).toList();
+    return items
+        .map((item) => GeoWilaya.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
   }
 
   Future<List<GeoCommune>> getGeoCommunes(String wilayaCode) async {
@@ -226,7 +310,9 @@ class ApiService {
       queryParameters: {'action': 'communes', 'wilaya': wilayaCode},
     );
     final items = response.data['communes'] as List<dynamic>? ?? [];
-    return items.map((item) => GeoCommune.fromJson(Map<String, dynamic>.from(item))).toList();
+    return items
+        .map((item) => GeoCommune.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
   }
 
   Future<Map<String, dynamic>> searchGeoFacilities({

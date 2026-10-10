@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
 import '../models/doctor.dart';
 import '../models/visit.dart';
 import '../models/product.dart';
@@ -54,7 +56,7 @@ class ApiService {
 
     _dio.interceptors.add(
       LogInterceptor(
-        requestBody: true,
+        requestBody: false,
         responseBody: true,
       ),
     );
@@ -109,9 +111,21 @@ class ApiService {
 
   /// Log a single visit immediately when online
   Future<Map<String, dynamic>> logVisit(Visit visit) async {
+    final visitJson = visit.toJson()..remove('proofDocuments');
+    final form = FormData.fromMap({'visit': jsonEncode(visitJson)});
+    form.fields.add(MapEntry('documentTypes', jsonEncode(visit.proofDocuments.map((doc) => doc['documentType'] ?? 'attachment').toList())));
+    for (final document in visit.proofDocuments) {
+      final bytes = base64Decode(document['dataBase64']?.toString() ?? '');
+      form.files.add(MapEntry('documents', MultipartFile.fromBytes(
+        bytes,
+        filename: document['fileName']?.toString() ?? 'visit-document.jpg',
+        contentType: MediaType.parse(document['mimeType']?.toString() ?? 'image/jpeg'),
+      )));
+    }
     final response = await _dio.post(
       '/api/mobile/visits',
-      data: visit.toJson(),
+      data: form,
+      options: Options(contentType: Headers.multipartFormDataContentType),
     );
     return response.data;
   }
@@ -121,15 +135,22 @@ class ApiService {
     required String repId,
     required List<Map<String, dynamic>> queuedVisits,
   }) async {
-    final response = await _dio.post(
-      '/api/mobile/sync',
-      data: {
-        'repId': repId,
-        'visits': queuedVisits,
-        'clientTimestamp': DateTime.now().toIso8601String(),
-      },
-    );
-    return response.data;
+    final syncedUuids = <String>[];
+    final failures = <Map<String, String>>[];
+    for (final visit in queuedVisits) {
+      try {
+        final visitModel = Visit.fromJson({...visit, 'rep_id': repId});
+        final result = await logVisit(visitModel);
+        final uuid = visit['client_uuid']?.toString();
+        if (result['success'] == true && uuid != null) syncedUuids.add(uuid);
+        else failures.add({'clientUuid': uuid ?? '', 'error': result['error']?.toString() ?? 'Sync failed'});
+      } on DioException catch (error) {
+        failures.add({'clientUuid': visit['client_uuid']?.toString() ?? '', 'error': error.response?.data?['error']?.toString() ?? error.message ?? 'Sync failed'});
+      } catch (error) {
+        failures.add({'clientUuid': visit['client_uuid']?.toString() ?? '', 'error': error.toString()});
+      }
+    }
+    return {'success': failures.isEmpty, 'processedCount': syncedUuids.length, 'syncedUuids': syncedUuids, 'failures': failures};
   }
 
   /// Fetch medicine catalog and available sample inventory

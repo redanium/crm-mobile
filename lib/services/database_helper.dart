@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -60,6 +60,7 @@ class DatabaseHelper {
         samples_distributed TEXT,
         gifts_distributed TEXT,
         inventory_distributions TEXT,
+        proof_documents TEXT,
         feedback_notes TEXT,
         next_followup_date TEXT,
         latitude REAL,
@@ -202,6 +203,9 @@ class DatabaseHelper {
       for (final table in ['sample_batches', 'promotional_gifts']) {
         try { await db.execute('ALTER TABLE $table ADD COLUMN initial_quantity INTEGER DEFAULT 0;'); } catch (_) {}
       }
+    }
+    if (oldVersion < 9) {
+      try { await db.execute('ALTER TABLE offline_visits ADD COLUMN proof_documents TEXT;'); } catch (_) {}
     }
   }
 

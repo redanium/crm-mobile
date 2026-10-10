@@ -11,6 +11,9 @@ dependencies:
     sdk: flutter
   # HTTP networking & offline sync
   dio: ^5.4.0
+  flutter_doc_scanner: ^0.0.21
+  file_picker: ^9.2.3
+  http_parser: ^4.1.0
   # Local SQLite database for 100% offline field operation
   sqflite: ^2.3.2
   path_provider: ^2.1.2

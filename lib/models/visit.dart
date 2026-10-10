@@ -12,6 +12,7 @@ class Visit {
   final String? samplesDistributed;
   final String? giftsDistributed;
   final List<Map<String, dynamic>> inventoryDistributions;
+  final List<Map<String, dynamic>> proofDocuments;
   final String? feedbackNotes;
   final String? nextFollowupDate;
   final double? latitude;
@@ -33,6 +34,7 @@ class Visit {
     this.samplesDistributed,
     this.giftsDistributed,
     this.inventoryDistributions = const [],
+    this.proofDocuments = const [],
     this.feedbackNotes,
     this.nextFollowupDate,
     this.latitude,
@@ -48,6 +50,10 @@ class Visit {
     final inventory = rawInventory is String
         ? (jsonDecode(rawInventory) as List<dynamic>? ?? [])
         : (rawInventory as List<dynamic>? ?? []);
+    final rawDocuments = json['proofDocuments'] ?? json['proof_documents'];
+    final documents = rawDocuments is String
+        ? (jsonDecode(rawDocuments) as List<dynamic>? ?? [])
+        : (rawDocuments as List<dynamic>? ?? []);
     return Visit(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? ''),
       clientUuid: json['clientUuid'] ?? json['client_uuid'],
@@ -60,6 +66,7 @@ class Visit {
       samplesDistributed: json['samplesDistributed'] ?? json['samples_distributed'],
       giftsDistributed: json['giftsDistributed'] ?? json['gifts_distributed'],
       inventoryDistributions: inventory.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+      proofDocuments: documents.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
       feedbackNotes: json['feedbackNotes'] ?? json['feedback_notes'] ?? json['notes'],
       nextFollowupDate: json['nextFollowupDate'] ?? json['next_followup_date'],
       latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
@@ -86,6 +93,7 @@ class Visit {
       'samplesDistributed': samplesDistributed,
       'giftsDistributed': giftsDistributed,
       'inventoryDistributions': inventoryDistributions,
+      'proofDocuments': proofDocuments,
       'feedbackNotes': feedbackNotes,
       'nextFollowupDate': nextFollowupDate,
       'latitude': latitude,
@@ -110,6 +118,7 @@ class Visit {
       'samples_distributed': samplesDistributed,
       'gifts_distributed': giftsDistributed,
       'inventory_distributions': jsonEncode(inventoryDistributions),
+      'proof_documents': jsonEncode(proofDocuments),
       'feedback_notes': feedbackNotes,
       'next_followup_date': nextFollowupDate,
       'latitude': latitude,

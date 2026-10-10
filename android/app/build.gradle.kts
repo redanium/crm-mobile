@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace = "com.example.algeria_pharma_crm_mobile"
-    compileSdk = flutter.compileSdkVersion
+    // file_picker's Android lifecycle dependency requires Android API 36 to compile.
+    // This does not change targetSdk or runtime behavior on installed devices.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

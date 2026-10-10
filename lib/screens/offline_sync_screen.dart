@@ -35,6 +35,7 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
 
   Future<void> _triggerCloudSync() async {
     if (_pendingVisits.isEmpty) return;
+    final pendingCount = _pendingVisits.length;
     setState(() => _isSyncing = true);
 
     final apiService = Provider.of<ApiService>(context, listen: false);
@@ -51,12 +52,10 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
         queuedVisits: _pendingVisits,
       );
 
-      // Mark local items as synced
-      for (var visit in _pendingVisits) {
-        final uuid = visit['client_uuid']?.toString();
-        if (uuid != null) {
-          await dbHelper.markVisitSynced(uuid);
-        }
+      // Keep failed visits in the offline queue so proof files are not lost.
+      final synced = (res['syncedUuids'] as List<dynamic>? ?? []).map((item) => item.toString()).toSet();
+      for (final uuid in synced) {
+        await dbHelper.markVisitSynced(uuid);
       }
 
       await _loadPendingQueue();
@@ -64,8 +63,8 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${res['processedCount'] ?? _pendingVisits.length} visites synchronisées avec succès !'),
-          backgroundColor: const Color(0xFF0F766E),
+          content: Text('${res['processedCount'] ?? 0} visites synchronisées · ${_pendingVisits.length} en attente'),
+          backgroundColor: synced.length == pendingCount ? const Color(0xFF0F766E) : const Color(0xFFD97706),
         ),
       );
     } catch (e) {

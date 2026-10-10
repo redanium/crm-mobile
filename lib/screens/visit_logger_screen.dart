@@ -122,11 +122,11 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       }
       final liveSamples = (bundle['samples'] as List<SampleBatch>? ?? []).map((sample) => SampleBatch(
         id: sample.id, prodId: sample.prodId, brandName: sample.brandName, expiry: sample.expiry,
-        quantity: (sample.quantity - (reserved['sample:${sample.id}'] ?? 0)).clamp(0, sample.quantity).toInt(), unit: sample.unit, isAllocated: sample.isAllocated,
+        quantity: (sample.quantity - (reserved['sample:${sample.id}'] ?? 0)).clamp(0, sample.quantity).toInt(), initialQuantity: sample.initialQuantity, unit: sample.unit, isAllocated: sample.isAllocated,
       )).toList();
       final liveGifts = (bundle['gifts'] as List<PromotionalGift>? ?? []).map((gift) => PromotionalGift(
         id: gift.id, giftId: gift.giftId, name: gift.name,
-        quantity: (gift.quantity - (reserved['gift:${gift.id}'] ?? 0)).clamp(0, gift.quantity).toInt(), distributed: gift.distributed, isAllocated: gift.isAllocated,
+        quantity: (gift.quantity - (reserved['gift:${gift.id}'] ?? 0)).clamp(0, gift.quantity).toInt(), initialQuantity: gift.initialQuantity, distributed: gift.distributed, isAllocated: gift.isAllocated,
       )).toList();
 
       if (liveProducts.isNotEmpty || liveSamples.isNotEmpty || liveGifts.isNotEmpty) {
@@ -423,11 +423,11 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       await dbHelper.enqueueVisit(visitPayload);
       final reservedSamples = _availableSamples.map((sample) {
         final used = _inventorySelections['sample:${sample.id}'] ?? 0;
-        return SampleBatch(id: sample.id, prodId: sample.prodId, brandName: sample.brandName, expiry: sample.expiry, quantity: (sample.quantity - used).clamp(0, sample.quantity).toInt(), unit: sample.unit, isAllocated: sample.isAllocated);
+        return SampleBatch(id: sample.id, prodId: sample.prodId, brandName: sample.brandName, expiry: sample.expiry, quantity: (sample.quantity - used).clamp(0, sample.quantity).toInt(), initialQuantity: sample.initialQuantity, unit: sample.unit, isAllocated: sample.isAllocated);
       }).toList();
       final reservedGifts = _availableGifts.map((gift) {
         final used = _inventorySelections['gift:${gift.id}'] ?? 0;
-        return PromotionalGift(id: gift.id, giftId: gift.giftId, name: gift.name, quantity: (gift.quantity - used).clamp(0, gift.quantity).toInt(), distributed: gift.distributed, isAllocated: gift.isAllocated);
+        return PromotionalGift(id: gift.id, giftId: gift.giftId, name: gift.name, quantity: (gift.quantity - used).clamp(0, gift.quantity).toInt(), initialQuantity: gift.initialQuantity, distributed: gift.distributed, isAllocated: gift.isAllocated);
       }).toList();
       setState(() { _availableSamples = reservedSamples; _availableGifts = reservedGifts; });
       await dbHelper.cacheCatalog(products: _availableProducts, samples: reservedSamples, gifts: reservedGifts);

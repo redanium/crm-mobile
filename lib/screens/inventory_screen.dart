@@ -63,11 +63,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
       final samples = (bundle['samples'] as List<SampleBatch>? ?? []).map((item) => SampleBatch(
         id: item.id, prodId: item.prodId, brandName: item.brandName, expiry: item.expiry,
         quantity: (item.quantity - (reserved['sample:${item.id}'] ?? 0)).clamp(0, item.quantity).toInt(),
+        initialQuantity: item.initialQuantity,
         unit: item.unit, isAllocated: item.isAllocated,
       )).toList();
       final gifts = (bundle['gifts'] as List<PromotionalGift>? ?? []).map((item) => PromotionalGift(
         id: item.id, giftId: item.giftId, name: item.name,
         quantity: (item.quantity - (reserved['gift:${item.id}'] ?? 0)).clamp(0, item.quantity).toInt(),
+        initialQuantity: item.initialQuantity,
         distributed: item.distributed, isAllocated: item.isAllocated,
       )).toList();
       await database.cacheCatalog(products: products, samples: samples, gifts: gifts);
@@ -183,6 +185,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         code: 'Lot ${sample.prodId}',
         detail: sample.isExpired ? 'EXPIRÉ · À détruire · Expiration : ${sample.expiry}' : 'Expiration : ${sample.expiry}',
         quantity: sample.quantity,
+        initialQuantity: sample.initialQuantity,
         unit: sample.unit,
         color: sample.isExpired ? const Color(0xFFDC2626) : const Color(0xFF0F766E),
         icon: LucideIcons.package,
@@ -240,6 +243,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         code: gift.giftId,
         detail: 'Objet promotionnel',
         quantity: gift.quantity,
+        initialQuantity: gift.initialQuantity,
         unit: 'unité(s)',
         color: const Color(0xFF7C3AED),
         icon: LucideIcons.gift,
@@ -290,7 +294,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  Widget _stockCard({required String title, required String code, required String detail, required int quantity, required String unit, required Color color, required IconData icon, bool isExpired = false, VoidCallback? onDestroy}) {
+  Widget _stockCard({required String title, required String code, required String detail, required int quantity, int? initialQuantity, required String unit, required Color color, required IconData icon, bool isExpired = false, VoidCallback? onDestroy}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 9),
       padding: const EdgeInsets.all(14),
@@ -302,6 +306,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
           Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A))),
           const SizedBox(height: 3),
           Text('$code · $detail', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)), maxLines: 2, overflow: TextOverflow.ellipsis),
+          if (initialQuantity != null) ...[
+            const SizedBox(height: 3),
+            Text('Initial : $initialQuantity · Restant : $quantity', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+          ],
           if (onDestroy != null) ...[
             const SizedBox(height: 6),
             TextButton.icon(onPressed: onDestroy, icon: const Icon(LucideIcons.trash2, size: 13), label: const Text('Détruire le stock expiré', style: TextStyle(fontSize: 10)), style: TextButton.styleFrom(foregroundColor: const Color(0xFFB91C1C), padding: EdgeInsets.zero, minimumSize: const Size(0, 26), alignment: Alignment.centerLeft)),

@@ -75,6 +75,7 @@ class SampleBatch {
   final String brandName;
   final String expiry;
   final int quantity;
+  final int initialQuantity;
   final String unit;
   final bool isAllocated;
 
@@ -91,9 +92,10 @@ class SampleBatch {
     required this.brandName,
     required this.expiry,
     required this.quantity,
+    int? initialQuantity,
     this.unit = 'boîte',
     this.isAllocated = false,
-  });
+  }) : initialQuantity = initialQuantity ?? quantity;
 
   factory SampleBatch.fromJson(Map<String, dynamic> json) {
     return SampleBatch(
@@ -102,6 +104,7 @@ class SampleBatch {
       brandName: json['brandName'] ?? json['brand_name'] ?? '',
       expiry: json['expiry'] ?? '',
       quantity: json['quantity'] is int ? json['quantity'] : int.tryParse(json['quantity']?.toString() ?? '0') ?? 0,
+      initialQuantity: json['initialQuantity'] is int ? json['initialQuantity'] : int.tryParse(json['initialQuantity']?.toString() ?? '') ?? int.tryParse(json['quantity']?.toString() ?? '0') ?? 0,
       unit: json['unit'] ?? 'boîte',
       isAllocated: json['allocated'] == true || json['isAllocated'] == true,
     );
@@ -114,6 +117,7 @@ class SampleBatch {
       'brand_name': brandName,
       'expiry': expiry,
       'quantity': quantity,
+      'initial_quantity': initialQuantity,
       'unit': unit,
       'is_allocated': isAllocated ? 1 : 0,
     };
@@ -126,6 +130,7 @@ class SampleBatch {
       brandName: map['brand_name'] ?? '',
       expiry: map['expiry'] ?? '',
       quantity: map['quantity'] is int ? map['quantity'] : int.tryParse(map['quantity']?.toString() ?? '0') ?? 0,
+      initialQuantity: map['initial_quantity'] is int ? map['initial_quantity'] : int.tryParse(map['initial_quantity']?.toString() ?? '') ?? int.tryParse(map['quantity']?.toString() ?? '0') ?? 0,
       unit: map['unit'] ?? 'boîte',
       isAllocated: map['is_allocated'] == 1 || map['is_allocated'] == true,
     );
@@ -137,6 +142,7 @@ class PromotionalGift {
   final String giftId;
   final String name;
   final int quantity;
+  final int initialQuantity;
   final int distributed;
   final bool isAllocated;
 
@@ -145,9 +151,10 @@ class PromotionalGift {
     required this.giftId,
     required this.name,
     required this.quantity,
+    int? initialQuantity,
     this.distributed = 0,
     this.isAllocated = false,
-  });
+  }) : initialQuantity = initialQuantity ?? quantity;
 
   factory PromotionalGift.fromJson(Map<String, dynamic> json) {
     return PromotionalGift(
@@ -155,6 +162,7 @@ class PromotionalGift {
       giftId: json['giftId'] ?? json['gift_id'] ?? '',
       name: json['name'] ?? '',
       quantity: json['quantity'] is int ? json['quantity'] : int.tryParse(json['quantity']?.toString() ?? '0') ?? 0,
+      initialQuantity: json['initialQuantity'] is int ? json['initialQuantity'] : int.tryParse(json['initialQuantity']?.toString() ?? '') ?? int.tryParse(json['quantity']?.toString() ?? '0') ?? 0,
       distributed: json['distributed'] is int ? json['distributed'] : int.tryParse(json['distributed']?.toString() ?? '0') ?? 0,
       isAllocated: json['allocated'] == true || json['isAllocated'] == true,
     );
@@ -166,6 +174,7 @@ class PromotionalGift {
       'gift_id': giftId,
       'name': name,
       'quantity': quantity,
+      'initial_quantity': initialQuantity,
       'distributed': distributed,
       'is_allocated': isAllocated ? 1 : 0,
     };
@@ -177,6 +186,7 @@ class PromotionalGift {
       giftId: map['gift_id'] ?? '',
       name: map['name'] ?? '',
       quantity: map['quantity'] is int ? map['quantity'] : int.tryParse(map['quantity']?.toString() ?? '0') ?? 0,
+      initialQuantity: map['initial_quantity'] is int ? map['initial_quantity'] : int.tryParse(map['initial_quantity']?.toString() ?? '') ?? int.tryParse(map['quantity']?.toString() ?? '0') ?? 0,
       distributed: map['distributed'] is int ? map['distributed'] : int.tryParse(map['distributed']?.toString() ?? '0') ?? 0,
       isAllocated: map['is_allocated'] == 1 || map['is_allocated'] == true,
     );

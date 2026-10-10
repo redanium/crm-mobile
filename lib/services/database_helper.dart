@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -95,6 +95,7 @@ class DatabaseHelper {
         brand_name TEXT NOT NULL,
         expiry TEXT,
         quantity INTEGER DEFAULT 0,
+        initial_quantity INTEGER DEFAULT 0,
         unit TEXT DEFAULT 'boîte',
         is_allocated INTEGER DEFAULT 0
       )
@@ -107,6 +108,7 @@ class DatabaseHelper {
         gift_id TEXT NOT NULL,
         name TEXT NOT NULL,
         quantity INTEGER DEFAULT 0,
+        initial_quantity INTEGER DEFAULT 0,
         distributed INTEGER DEFAULT 0,
         is_allocated INTEGER DEFAULT 0
       )
@@ -194,6 +196,11 @@ class DatabaseHelper {
     if (oldVersion < 7) {
       for (final column in ['source_name', 'destination_name', 'notes']) {
         try { await db.execute('ALTER TABLE stock_movements ADD COLUMN $column TEXT;'); } catch (_) {}
+      }
+    }
+    if (oldVersion < 8) {
+      for (final table in ['sample_batches', 'promotional_gifts']) {
+        try { await db.execute('ALTER TABLE $table ADD COLUMN initial_quantity INTEGER DEFAULT 0;'); } catch (_) {}
       }
     }
   }

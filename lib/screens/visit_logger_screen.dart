@@ -57,6 +57,23 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
 
   Doctor? _selectedDoctor;
 
+  String _productLabel(Product product) {
+    final details = [
+      if (product.code?.isNotEmpty == true) product.code,
+      if (product.dosageForm?.isNotEmpty == true) product.dosageForm,
+      if (product.strength?.isNotEmpty == true) product.strength,
+      if (product.boxSize?.isNotEmpty == true) product.boxSize,
+    ].join(' · ');
+    return details.isEmpty ? product.name : '${product.name} · $details';
+  }
+
+  String _selectedProductLabel(String productId) {
+    final product = _availableProducts
+        .where((item) => item.id.toString() == productId)
+        .firstOrNull;
+    return product == null ? productId : _productLabel(product);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -329,12 +346,11 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
     final items = _availableProducts.map((p) {
       final details = [
         if (p.genericName != null && p.genericName!.isNotEmpty) p.genericName,
-        if (p.dosageForm != null && p.dosageForm!.isNotEmpty) p.dosageForm,
-        if (p.strength != null && p.strength!.isNotEmpty) p.strength,
+        if (p.boxSize != null && p.boxSize!.isNotEmpty) p.boxSize,
       ].join(' · ');
 
       return FilterableItem(
-        id: p.name,
+        id: p.id.toString(),
         title: p.name,
         subtitle: details.isNotEmpty ? details : null,
         badge: p.dnhStatus?.contains('Chifa') == true
@@ -355,11 +371,16 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
     if (pickedList != null) {
       setState(() {
         _selectedProducts = pickedList.map((i) => i.id).toList();
-        _productQuantities.removeWhere((name, _) => !_selectedProducts.contains(name));
-        for (final name in _selectedProducts) {
-          _productQuantities.putIfAbsent(name, () => 1);
+        _productQuantities.removeWhere((productId, _) => !_selectedProducts.contains(productId));
+        for (final productId in _selectedProducts) {
+          _productQuantities.putIfAbsent(productId, () => 1);
         }
-        _productsCtrl.text = _selectedProducts.join(', ');
+        _productsCtrl.text = pickedList.map((item) {
+          final product = _availableProducts
+              .where((candidate) => candidate.id.toString() == item.id)
+              .firstOrNull;
+          return product == null ? item.title : _productLabel(product);
+        }).join(', ');
       });
     }
   }
@@ -628,9 +649,9 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
       'rep_id': repId,
       'purpose': _purpose,
       'products_discussed': _productsCtrl.text.trim(),
-      'product_quantities': jsonEncode(_selectedProducts.map((name) {
-        final product = _availableProducts.where((item) => item.name == name).firstOrNull;
-        return {'productId': product?.id, 'quantity': _productQuantities[name] ?? 1};
+      'product_quantities': jsonEncode(_selectedProducts.map((productId) {
+        final product = _availableProducts.where((item) => item.id.toString() == productId).firstOrNull;
+        return {'productId': product?.id, 'quantity': _productQuantities[productId] ?? 1};
       }).where((entry) => entry['productId'] != null).toList()),
       'samples_distributed': _samplesCtrl.text.trim(),
       'gifts_distributed': _giftsCtrl.text.trim(),
@@ -982,13 +1003,13 @@ class _VisitLoggerScreenState extends State<VisitLoggerScreen> {
               const SizedBox(height: 4),
               Text('Quantités de produits discutées',
                   style: Theme.of(context).textTheme.labelLarge),
-              for (final productName in _selectedProducts)
+              for (final productId in _selectedProducts)
                 _inventoryQuantityRow(
-                  title: productName,
+                  title: _selectedProductLabel(productId),
                   subtitle: 'Quantité présentée pendant la visite',
                   max: 999999,
-                  quantity: _productQuantities[productName] ?? 1,
-                  onChanged: (value) => setState(() => _productQuantities[productName] = value),
+                  quantity: _productQuantities[productId] ?? 1,
+                  onChanged: (value) => setState(() => _productQuantities[productId] = value),
                 ),
             ],
             const SizedBox(height: 12),

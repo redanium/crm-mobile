@@ -36,8 +36,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       final cachedMovements = await database.getCachedStockMovements();
       if (mounted) {
         setState(() {
-          _samples = cachedSamples.where((item) => item.isAllocated).toList();
-          _gifts = cachedGifts.where((item) => item.isAllocated).toList();
+          _samples = cachedSamples.where((item) => item.isAllocated && item.quantity > 0).toList();
+          _gifts = cachedGifts.where((item) => item.isAllocated && item.quantity > 0).toList();
           _movements = cachedMovements;
           _isLoading = false;
         });
@@ -76,8 +76,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       await database.cacheStockMovements(movements);
       if (!mounted) return;
       setState(() {
-        _samples = samples.where((item) => item.isAllocated).toList();
-        _gifts = gifts.where((item) => item.isAllocated).toList();
+        _samples = samples.where((item) => item.isAllocated && item.quantity > 0).toList();
+        _gifts = gifts.where((item) => item.isAllocated && item.quantity > 0).toList();
         _movements = movements;
         _isOffline = false;
         _isLoading = false;

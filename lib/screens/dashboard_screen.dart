@@ -10,6 +10,7 @@ import 'offline_sync_screen.dart';
 import 'visits_history_screen.dart';
 import 'geoalgeria_directory_screen.dart';
 import 'inventory_screen.dart';
+import 'medicine_directory_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -152,6 +153,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 leading: const Icon(LucideIcons.mapPin, size: 19),
                 title: const Text('Annuaire GeoAlgeria'),
                 onTap: () => _openDrawerScreen(const GeoAlgeriaDirectoryScreen()),
+              ),
+              ListTile(
+                leading: const Icon(Icons.medication_outlined, size: 19),
+                title: const Text('Annuaire médicaments'),
+                subtitle: const Text('Référentiel public français BDPM'),
+                onTap: () => _openDrawerScreen(const MedicineDirectoryScreen()),
               ),
               ListTile(
                 leading: const Icon(LucideIcons.calendarClock, size: 19),

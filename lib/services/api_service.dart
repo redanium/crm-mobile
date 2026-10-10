@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import '../models/doctor.dart';
 import '../models/visit.dart';
 import '../models/product.dart';
+import '../models/medicine_directory_entry.dart';
 import '../models/geo_facility.dart';
 import 'auth_service.dart';
 
@@ -129,6 +130,16 @@ class ApiService {
     final response = await _dio.get('/api/mobile/products');
     final data = response.data['products'] as List<dynamic>;
     return data.map((json) => Product.fromJson(json)).toList();
+  }
+
+  /// Search the CRM's French BDPM medicine directory (read-only on mobile).
+  Future<List<MedicineDirectoryEntry>> searchMedicineDirectory(String query) async {
+    final response = await _dio.get('/api/medicines-directory', queryParameters: {'q': query});
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final items = data['items'] as List<dynamic>? ?? [];
+    return items
+        .map((item) => MedicineDirectoryEntry.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
   }
 
   /// Fetch full catalog bundle: products, samples batches, and gifts
